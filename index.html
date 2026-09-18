@@ -1811,26 +1811,31 @@
                 </button>
 
                 {isUserDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-64 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl py-1.5 z-50 divide-y divide-gray-800/60 backdrop-blur-md">
-                    <div className="px-3.5 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Cambiar Perfil Activo</div>
-                    <div className="py-1">
-                      {users.map(u => (
-                        <button
-                          key={u.id}
-                          onClick={() => { setCurrentUser(u); setIsUserDropdownOpen(false); }}
-                          className={`w-full px-3.5 py-2 text-left text-xs font-semibold flex items-center justify-between transition-colors ${
-                            currentUser.id === u.id ? 'bg-emerald-600/30 text-white font-bold' : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                          }`}
-                        >
-                          <div className="flex items-center space-x-2 truncate">
-                            <span>{u.role === 'BOSS' ? '👑' : u.role === 'THIRD_PARTY' ? '🔧' : '👷'}</span>
-                            <span className="truncate">{u.name}</span>
-                          </div>
-                          {currentUser.id === u.id && <span className="text-emerald-400 font-bold">✓</span>}
-                        </button>
-                      ))}
+                  <div className="absolute right-0 mt-2 w-64 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl py-2 z-50 divide-y divide-gray-800/60 backdrop-blur-md">
+                    {/* Logged in User Header */}
+                    <div className="px-4 py-3 bg-gray-950/40">
+                      <div className="flex items-center space-x-2.5">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-base font-bold shadow-md ${
+                          currentUser.role === 'BOSS'
+                            ? 'bg-amber-950 border border-amber-700/60 text-amber-300'
+                            : currentUser.role === 'THIRD_PARTY'
+                            ? 'bg-teal-950 border border-teal-700/60 text-teal-300'
+                            : 'bg-emerald-950 border border-emerald-700/60 text-emerald-300'
+                        }`}>
+                          {currentUser.role === 'BOSS' ? '👑' : currentUser.role === 'THIRD_PARTY' ? '🔧' : '👷'}
+                        </div>
+                        <div className="truncate">
+                          <p className="font-extrabold text-white text-xs truncate">{currentUser.name}</p>
+                          <p className="text-[10px] text-gray-400 truncate">{currentUser.email}</p>
+                          <span className="inline-block mt-0.5 px-2 py-0.5 bg-gray-800 text-gray-300 text-[9px] font-bold rounded-md uppercase">
+                            {currentUser.role === 'BOSS' ? 'Jefe / Admin' : currentUser.role === 'THIRD_PARTY' ? 'Contratista 3ero' : 'Empleado Técnico'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="pt-1.5 px-1.5 space-y-1">
+
+                    {/* User Session Actions */}
+                    <div className="pt-2 px-1.5 space-y-1">
                       <button
                         onClick={() => { setIsUserDropdownOpen(false); setIsProfileModalOpen(true); }}
                         className="w-full px-3 py-2 text-left text-xs font-bold text-emerald-400 hover:bg-emerald-950/60 hover:text-emerald-300 rounded-xl transition-colors flex items-center space-x-2 cursor-pointer"
