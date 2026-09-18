@@ -248,10 +248,10 @@
             </div>
 
             {/* Tab Selection Buttons */}
-            <div className="grid grid-cols-3 p-1 bg-gray-950/80 border border-gray-800/80 rounded-2xl mb-6 text-[11px] sm:text-xs font-bold">
+            <div className="grid grid-cols-2 p-1 bg-gray-950/80 border border-gray-800/80 rounded-2xl mb-6 text-[11px] sm:text-xs font-bold">
               <button
                 type="button"
-                onClick={() => { setActiveTab('FAST_PROFILES'); setRegSuccess(false); }}
+                onClick={() => setActiveTab('FAST_PROFILES')}
                 className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center space-x-1 ${
                   activeTab === 'FAST_PROFILES'
                     ? 'bg-emerald-600 text-white shadow-md'
@@ -262,7 +262,7 @@
               </button>
               <button
                 type="button"
-                onClick={() => { setActiveTab('CREDENTIALS'); setRegSuccess(false); }}
+                onClick={() => setActiveTab('CREDENTIALS')}
                 className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center space-x-1 ${
                   activeTab === 'CREDENTIALS'
                     ? 'bg-emerald-600 text-white shadow-md'
@@ -270,17 +270,6 @@
                 }`}
               >
                 <span>🔒 Ingreso</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setActiveTab('REGISTER'); setRegSuccess(false); }}
-                className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center space-x-1 ${
-                  activeTab === 'REGISTER'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                <span>✨ Crear Cuenta</span>
               </button>
             </div>
 
@@ -396,114 +385,6 @@
                   <span>➔</span>
                 </button>
               </form>
-            )}
-
-            {/* TAB 3: CREAR CUENTA */}
-            {activeTab === 'REGISTER' && (
-              <div>
-                {regSuccess ? (
-                  <div className="p-6 bg-emerald-950/60 border border-emerald-700/60 rounded-2xl text-center space-y-4">
-                    <div className="w-14 h-14 bg-emerald-600/30 border border-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto shadow-lg">
-                      ⏳
-                    </div>
-                    <h3 className="text-lg font-extrabold text-white">¡Solicitud de Registro Enviada!</h3>
-                    <p className="text-xs text-gray-300 leading-relaxed">
-                      Hola <strong className="text-emerald-300">{regName}</strong>, tu cuenta ha sido creada exitosamente y se encuentra <span className="px-2 py-0.5 bg-amber-900/60 border border-amber-700 text-amber-300 rounded-full font-bold text-[10px]">PENDIENTE DE APROBACIÓN</span>.
-                    </p>
-                    <div className="p-3 bg-gray-900/90 border border-gray-800 rounded-xl text-left text-xs text-gray-400 space-y-1">
-                      <p>📌 <strong>Regla del Sistema:</strong> El usuario Jefe/Administrador deberá revisar tu solicitud y asignar tu rol (<em>Jefe</em>, <em>Empleado Técnico</em> o <em>Contratista 3ero</em>) para activar tu acceso al Calendario.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { setRegSuccess(false); setActiveTab('FAST_PROFILES'); }}
-                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-lg shadow-emerald-600/30"
-                    >
-                      Volver a la Pantalla de Inicio
-                    </button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
-                    {regError && (
-                      <div className="p-3 bg-red-950/80 border border-red-800 text-red-300 rounded-xl text-xs font-semibold">
-                        {regError}
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="block text-xs font-bold text-gray-300 mb-1 uppercase tracking-wider">Nombre Completo *</label>
-                      <input
-                        type="text"
-                        required
-                        value={regName}
-                        onChange={e => setRegName(e.target.value)}
-                        placeholder="Ej. Ing. Laura Ríos"
-                        className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-300 mb-1 uppercase tracking-wider">Correo Electrónico *</label>
-                        <input
-                          type="email"
-                          required
-                          value={regEmail}
-                          onChange={e => setRegEmail(e.target.value)}
-                          placeholder="laura@empresa.com"
-                          className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-gray-300 mb-1 uppercase tracking-wider">Teléfono (WhatsApp)</label>
-                        <input
-                          type="tel"
-                          value={regPhone}
-                          onChange={e => setRegPhone(e.target.value)}
-                          placeholder="+525559998877"
-                          className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-bold text-gray-300 mb-1 uppercase tracking-wider">Contraseña *</label>
-                        <input
-                          type="password"
-                          required
-                          value={regPassword}
-                          onChange={e => setRegPassword(e.target.value)}
-                          placeholder="••••••••"
-                          className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-gray-300 mb-1 uppercase tracking-wider">Confirmar Contraseña *</label>
-                        <input
-                          type="password"
-                          required
-                          value={regConfirmPassword}
-                          onChange={e => setRegConfirmPassword(e.target.value)}
-                          placeholder="••••••••"
-                          className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="p-3 bg-gray-950/80 border border-gray-800 rounded-xl text-[11px] text-gray-400">
-                      🔒 <strong>Asignación de Rol:</strong> Al registrarte, tu cuenta quedará registrada y en espera de activación. El Jefe/Administrador se encargará de aprobar tu acceso y asignarte el rol correspondiente.
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center justify-center space-x-2"
-                    >
-                      <span>✨ Solicitar Registro & Crear Cuenta</span>
-                      <span>➔</span>
-                    </button>
-                  </form>
-                )}
-              </div>
             )}
 
             {/* Footer info */}
