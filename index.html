@@ -1,0 +1,3004 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calendario Empresarial, Subasta de Trabajos & WhatsApp</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React 18 & ReactDOM 18 UMD CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel Standalone for JSX in browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    body {
+      background-color: #030712;
+      color: #f9fafb;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      min-height: 100vh;
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #111827;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #374151;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4b5563;
+    }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 selection:bg-emerald-600 selection:text-white">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- INITIAL SEED DATA WITH MULTIPLE CONTRACTORS & AUCTION TASKS ---
+    const DEFAULT_USERS = [
+      { id: 'usr-1', name: 'Ing. Carlos Mendoza (Jefe)', email: 'jefe@empresa.com', phone: '+525551234567', role: 'BOSS', status: 'ACTIVE' },
+      { id: 'usr-2', name: 'Juan Pérez (Empleado Técnico)', email: 'empleado@empresa.com', phone: '+525559876543', role: 'EMPLOYEE', status: 'ACTIVE' },
+      { id: 'usr-3', name: 'Roberto Gómez (Contratista 3ero - Electricista)', email: 'roberto@terceros.com', phone: '+525554443322', role: 'THIRD_PARTY', status: 'ACTIVE' },
+      { id: 'usr-4', name: 'Mario Silva (Partner Contratista - Climatización)', email: 'mario@partners.com', phone: '+525557778899', role: 'THIRD_PARTY', status: 'ACTIVE' }
+    ];
+
+    const DEFAULT_PROJECTS = [
+      { id: 'prj-1', name: 'Proyecto Alfa - Remodelación Sede Central', color: 'emerald' },
+      { id: 'prj-2', name: 'Proyecto Beta - Infraestructura & Servidores', color: 'cyan' },
+      { id: 'prj-3', name: 'Proyecto Gamma - Climatización Corporativa', color: 'amber' },
+      { id: 'prj-4', name: 'Proyecto Delta - Redes & Cableado Estructurado', color: 'teal' }
+    ];
+
+    const getInitialTasks = () => {
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0];
+
+      return [
+        {
+          id: 'task-1',
+          title: 'Mantenimiento Preventivo de Servidores',
+          description: 'Revisión preventiva de gabinete de comunicaciones y respaldos.',
+          location: 'Oficina Central - Piso 2',
+          startTime: `${dateStr}T09:00:00`,
+          endTime: `${dateStr}T11:30:00`,
+          status: 'PENDING',
+          isPersonal: false,
+          isAuction: false,
+          assignedToId: 'usr-2',
+          createdById: 'usr-1',
+          projectId: 'prj-2'
+        },
+        {
+          id: 'task-2',
+          title: '⚡ SUBASTA: Mantenimiento Urgente Aire Acondicionado',
+          description: 'Trabajo disponible para el primer contratista/partner que lo reclame.',
+          location: 'Edificio Corporativo - Sala de Juntas',
+          startTime: `${dateStr}T14:00:00`,
+          endTime: `${dateStr}T16:30:00`,
+          status: 'OPEN_AUCTION',
+          isPersonal: false,
+          isAuction: true,
+          assignedToId: null, // SIN ASIGNAR - SUBASTA ABIERTA
+          createdById: 'usr-1',
+          projectId: 'prj-3'
+        },
+        {
+          id: 'task-3',
+          title: 'Instalación Cableado Cat6a',
+          description: 'Subcontrato de certificación y tirado de 24 puntos de red.',
+          location: 'Edificio B - Planta Baja',
+          startTime: `${dateStr}T13:00:00`,
+          endTime: `${dateStr}T16:00:00`,
+          status: 'IN_PROGRESS',
+          isPersonal: false,
+          isAuction: false,
+          assignedToId: 'usr-3',
+          createdById: 'usr-1',
+          projectId: 'prj-4'
+        },
+        {
+          id: 'task-4',
+          title: '🟣 Cita Médica & Exámenes Ocupacionales',
+          description: 'Asunto y compromiso personal.',
+          location: 'Clínica San José',
+          startTime: `${dateStr}T17:00:00`,
+          endTime: `${dateStr}T18:30:00`,
+          status: 'PENDING',
+          isPersonal: true,
+          isAuction: false,
+          assignedToId: 'usr-2',
+          createdById: 'usr-2',
+          projectId: null
+        }
+      ];
+    };
+
+    const getInitialWhatsAppLogs = () => {
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0];
+      return [
+        {
+          id: 'log-1',
+          recipientName: 'Roberto Gómez (Contratista 3ero)',
+          recipientPhone: '+525554443322',
+          message: `NUEVA ASIGNACIÓN DE TRABAJO\nHola Roberto Gómez, el Ing. Carlos Mendoza te ha asignado el trabajo 'Instalación Cableado Cat6a' el ${dateStr} de 13:00 a 16:00. Horario reservado.`,
+          status: 'DIRECT_WHATSAPP',
+          sentAt: new Date().toISOString()
+        }
+      ];
+    };
+
+    // --- LOGIN SCREEN COMPONENT ---
+    function LoginScreen({ users, onLogin, onRegister }) {
+      const [activeTab, setActiveTab] = useState('FAST_PROFILES'); // 'FAST_PROFILES' | 'CREDENTIALS' | 'REGISTER'
+      const [userOrEmailInput, setUserOrEmailInput] = useState('jefe@empresa.com');
+      const [password, setPassword] = useState('123456');
+      const [rememberMe, setRememberMe] = useState(true);
+      const [errorMsg, setErrorMsg] = useState('');
+
+      // Registration State
+      const [regName, setRegName] = useState('');
+      const [regEmail, setRegEmail] = useState('');
+      const [regPhone, setRegPhone] = useState('');
+      const [regPassword, setRegPassword] = useState('');
+      const [regConfirmPassword, setRegConfirmPassword] = useState('');
+      const [regSuccess, setRegSuccess] = useState(false);
+      const [regError, setRegError] = useState('');
+
+      const handleCredSubmit = (e) => {
+        e.preventDefault();
+        setErrorMsg('');
+        const query = userOrEmailInput.trim().toLowerCase();
+        if (!query) {
+          setErrorMsg('Por favor ingresa tu nombre de usuario o correo electrónico.');
+          return;
+        }
+
+        const target = users.find(u => 
+          u.email.toLowerCase() === query || 
+          u.name.toLowerCase() === query ||
+          u.id.toLowerCase() === query ||
+          u.email.toLowerCase().includes(query) ||
+          u.name.toLowerCase().includes(query)
+        );
+
+        if (!target) {
+          setErrorMsg(`❌ No se encontró ningún usuario o correo registrado que coincida con '${userOrEmailInput}'. Verifica tus datos o utiliza el Acceso Rápido.`);
+          return;
+        }
+
+        if (target.status === 'PENDING_APPROVAL' || target.role === 'PENDING') {
+          setErrorMsg('⏳ Tu cuenta fue registrada pero está PENDIENTE DE APROBACIÓN y asignación de rol por el Jefe. Contacta a la administración para activar tu usuario.');
+          return;
+        }
+
+        onLogin(target, rememberMe);
+      };
+
+      const handleFastProfileClick = (u) => {
+        setErrorMsg('');
+        if (u.status === 'PENDING_APPROVAL' || u.role === 'PENDING') {
+          setErrorMsg(`⏳ La cuenta de '${u.name}' aún está pendiente de aprobación por el Jefe.`);
+          setUserOrEmailInput(u.email);
+          setActiveTab('CREDENTIALS');
+          return;
+        }
+        onLogin(u, rememberMe);
+      };
+
+      const handleRegisterSubmit = (e) => {
+        e.preventDefault();
+        setRegError('');
+        if (!regName.trim() || !regEmail.trim() || !regPassword) {
+          setRegError('Por favor completa todos los campos obligatorios.');
+          return;
+        }
+        if (regPassword !== regConfirmPassword) {
+          setRegError('Las contraseñas no coinciden.');
+          return;
+        }
+        const exists = users.some(u => u.email.toLowerCase() === regEmail.trim().toLowerCase());
+        if (exists) {
+          setRegError('Ya existe un usuario registrado con este correo electrónico.');
+          return;
+        }
+
+        const newUser = {
+          id: 'usr-' + Date.now(),
+          name: regName.trim(),
+          email: regEmail.trim(),
+          phone: regPhone.trim() || '+525550000000',
+          role: 'PENDING',
+          status: 'PENDING_APPROVAL',
+          createdAt: new Date().toISOString()
+        };
+
+        onRegister(newUser);
+        setRegSuccess(true);
+      };
+
+      return (
+        <div className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden selection:bg-emerald-600 selection:text-white">
+          {/* Background Decorative Glow Effect (Esmeralda & Amber) */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-600/15 blur-[120px] rounded-full pointer-events-none"></div>
+          <div className="absolute bottom-10 right-10 w-[350px] h-[350px] bg-amber-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+          <div className="absolute top-10 left-10 w-[300px] h-[300px] bg-teal-600/10 blur-[90px] rounded-full pointer-events-none"></div>
+
+          <div className="w-full max-w-xl bg-gray-900/90 border border-emerald-950 rounded-3xl shadow-2xl backdrop-blur-xl p-6 sm:p-8 relative z-10">
+            {/* Brand Header */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center p-3 bg-gradient-to-br from-emerald-500 to-teal-700 rounded-2xl text-white shadow-xl shadow-emerald-600/30 mb-4">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Calendario Empresarial</h1>
+              <p className="text-xs sm:text-sm text-emerald-400/80 font-medium mt-1">Sistema de Asignaciones, Subastas de Trabajos & Control de Agenda</p>
+            </div>
+
+            {/* Tab Selection Buttons */}
+            <div className="grid grid-cols-3 p-1 bg-gray-950/80 border border-gray-800/80 rounded-2xl mb-6 text-[11px] sm:text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => { setActiveTab('FAST_PROFILES'); setRegSuccess(false); }}
+                className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center space-x-1 ${
+                  activeTab === 'FAST_PROFILES'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <span>⚡ Acceso Rápido</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveTab('CREDENTIALS'); setRegSuccess(false); }}
+                className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center space-x-1 ${
+                  activeTab === 'CREDENTIALS'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <span>🔒 Ingreso</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveTab('REGISTER'); setRegSuccess(false); }}
+                className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center space-x-1 ${
+                  activeTab === 'REGISTER'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <span>✨ Crear Cuenta</span>
+              </button>
+            </div>
+
+            {/* TAB 1: ACCESO RÁPIDO POR PERFIL */}
+            {activeTab === 'FAST_PROFILES' && (
+              <div className="space-y-3">
+                {errorMsg && (
+                  <div className="p-3 bg-amber-950/80 border border-amber-800 text-amber-300 rounded-xl text-xs font-semibold">
+                    {errorMsg}
+                  </div>
+                )}
+                <p className="text-xs text-gray-400 mb-2 font-medium">Selecciona un usuario para ingresar inmediatamente con sus permisos de rol:</p>
+                {users.map(u => {
+                  const isBoss = u.role === 'BOSS';
+                  const isThird = u.role === 'THIRD_PARTY';
+                  const isPending = u.status === 'PENDING_APPROVAL' || u.role === 'PENDING';
+                  return (
+                    <div
+                      key={u.id}
+                      onClick={() => handleFastProfileClick(u)}
+                      className="group p-4 bg-gray-950/60 hover:bg-gray-800/80 border border-gray-800 hover:border-emerald-500/50 rounded-2xl transition-all cursor-pointer flex items-center justify-between shadow-sm hover:shadow-lg"
+                    >
+                      <div className="flex items-center space-x-3.5">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold shadow-md ${
+                          isPending
+                            ? 'bg-gray-900 border border-gray-700 text-gray-400'
+                            : isBoss
+                            ? 'bg-amber-950 border border-amber-700/60 text-amber-300'
+                            : isThird
+                            ? 'bg-teal-950 border border-teal-700/60 text-teal-300'
+                            : 'bg-emerald-950 border border-emerald-700/60 text-emerald-300'
+                        }`}>
+                          {isPending ? '⏳' : isBoss ? '👑' : isThird ? '🔧' : '👷'}
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-bold text-white text-sm group-hover:text-emerald-300 transition-colors">{u.name}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              isPending
+                                ? 'bg-amber-900/60 border border-amber-700 text-amber-300'
+                                : isBoss
+                                ? 'bg-amber-900/60 border border-amber-700 text-amber-300'
+                                : isThird
+                                ? 'bg-teal-900/60 border border-teal-700 text-teal-300'
+                                : 'bg-emerald-900/60 border border-emerald-700 text-emerald-300'
+                            }`}>
+                              {isPending ? 'Pendiente Aprobación' : isBoss ? 'Jefe / Admin' : isThird ? 'Contratista 3ero' : 'Empleado Técnico'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-0.5">{u.email} • {u.phone}</p>
+                        </div>
+                      </div>
+                      <div className="text-xs font-bold text-emerald-400 group-hover:translate-x-1 transition-transform flex items-center space-x-1">
+                        <span>Ingresar</span>
+                        <span>➔</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* TAB 2: CREDENCIALES */}
+            {activeTab === 'CREDENTIALS' && (
+              <form onSubmit={handleCredSubmit} className="space-y-4">
+                {errorMsg && (
+                  <div className="p-3 bg-red-950/80 border border-red-800 text-red-300 rounded-xl text-xs font-semibold leading-relaxed">
+                    {errorMsg}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wider">Usuario o Correo Electrónico</label>
+                  <input
+                    type="text"
+                    required
+                    value={userOrEmailInput}
+                    onChange={e => setUserOrEmailInput(e.target.value)}
+                    placeholder="Ej. jefe@empresa.com o Carlos Mendoza"
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold placeholder:text-gray-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wider">Contraseña de Acceso</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                  <p className="text-[10px] text-gray-500 mt-1">Para entorno demo, cualquier contraseña estándar o la clave predeterminada es válida.</p>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <label className="flex items-center space-x-2 text-gray-400 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={e => setRememberMe(e.target.checked)}
+                      className="rounded border-gray-800 text-emerald-600 focus:ring-emerald-500 bg-gray-950"
+                    />
+                    <span>Recordar mi sesión en este navegador</span>
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center justify-center space-x-2 mt-2"
+                >
+                  <span>Iniciar Sesión Segura</span>
+                  <span>➔</span>
+                </button>
+              </form>
+            )}
+
+            {/* TAB 3: CREAR CUENTA */}
+            {activeTab === 'REGISTER' && (
+              <div>
+                {regSuccess ? (
+                  <div className="p-6 bg-emerald-950/60 border border-emerald-700/60 rounded-2xl text-center space-y-4">
+                    <div className="w-14 h-14 bg-emerald-600/30 border border-emerald-500 rounded-full flex items-center justify-center text-3xl mx-auto shadow-lg">
+                      ⏳
+                    </div>
+                    <h3 className="text-lg font-extrabold text-white">¡Solicitud de Registro Enviada!</h3>
+                    <p className="text-xs text-gray-300 leading-relaxed">
+                      Hola <strong className="text-emerald-300">{regName}</strong>, tu cuenta ha sido creada exitosamente y se encuentra <span className="px-2 py-0.5 bg-amber-900/60 border border-amber-700 text-amber-300 rounded-full font-bold text-[10px]">PENDIENTE DE APROBACIÓN</span>.
+                    </p>
+                    <div className="p-3 bg-gray-900/90 border border-gray-800 rounded-xl text-left text-xs text-gray-400 space-y-1">
+                      <p>📌 <strong>Regla del Sistema:</strong> El usuario Jefe/Administrador deberá revisar tu solicitud y asignar tu rol (<em>Jefe</em>, <em>Empleado Técnico</em> o <em>Contratista 3ero</em>) para activar tu acceso al Calendario.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setRegSuccess(false); setActiveTab('FAST_PROFILES'); }}
+                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-lg shadow-emerald-600/30"
+                    >
+                      Volver a la Pantalla de Inicio
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+                    {regError && (
+                      <div className="p-3 bg-red-950/80 border border-red-800 text-red-300 rounded-xl text-xs font-semibold">
+                        {regError}
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-300 mb-1 uppercase tracking-wider">Nombre Completo *</label>
+                      <input
+                        type="text"
+                        required
+                        value={regName}
+                        onChange={e => setRegName(e.target.value)}
+                        placeholder="Ej. Ing. Laura Ríos"
+                        className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-300 mb-1 uppercase tracking-wider">Correo Electrónico *</label>
+                        <input
+                          type="email"
+                          required
+                          value={regEmail}
+                          onChange={e => setRegEmail(e.target.value)}
+                          placeholder="laura@empresa.com"
+                          className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-300 mb-1 uppercase tracking-wider">Teléfono (WhatsApp)</label>
+                        <input
+                          type="tel"
+                          value={regPhone}
+                          onChange={e => setRegPhone(e.target.value)}
+                          placeholder="+525559998877"
+                          className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-300 mb-1 uppercase tracking-wider">Contraseña *</label>
+                        <input
+                          type="password"
+                          required
+                          value={regPassword}
+                          onChange={e => setRegPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-300 mb-1 uppercase tracking-wider">Confirmar Contraseña *</label>
+                        <input
+                          type="password"
+                          required
+                          value={regConfirmPassword}
+                          onChange={e => setRegConfirmPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-gray-950/80 border border-gray-800 rounded-xl text-[11px] text-gray-400">
+                      🔒 <strong>Asignación de Rol:</strong> Al registrarte, tu cuenta quedará registrada y en espera de activación. El Jefe/Administrador se encargará de aprobar tu acceso y asignarte el rol correspondiente.
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center justify-center space-x-2"
+                    >
+                      <span>✨ Solicitar Registro & Crear Cuenta</span>
+                      <span>➔</span>
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+
+            {/* Footer info */}
+            <div className="mt-8 pt-4 border-t border-gray-800/80 text-center">
+              <p className="text-[11px] text-gray-500 flex items-center justify-center space-x-1">
+                <span>🛡️ Conexión Local Protegida • Control de Permisos en Tiempo Real</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- USER MANAGEMENT MODAL (FOR BOSS / ADMIN) ---
+    function UserManagementModal({ isOpen, onClose, users, setUsers, setAppAlert }) {
+      if (!isOpen) return null;
+
+      const pendingUsers = users.filter(u => u.status === 'PENDING_APPROVAL' || u.role === 'PENDING');
+      const activeUsers = users.filter(u => u.status !== 'PENDING_APPROVAL' && u.role !== 'PENDING');
+
+      const [selectedRoles, setSelectedRoles] = useState({});
+
+      const handleApprove = (user) => {
+        const roleToAssign = selectedRoles[user.id] || 'THIRD_PARTY';
+        setUsers(prev => prev.map(u => {
+          if (u.id === user.id) {
+            return {
+              ...u,
+              role: roleToAssign,
+              status: 'ACTIVE'
+            };
+          }
+          return u;
+        }));
+      };
+
+      const handleReject = (userId) => {
+        if (setAppAlert) {
+          setAppAlert({
+            type: 'CONFIRM',
+            title: '🗑️ Rechazar Solicitud',
+            message: '¿Estás seguro de rechazar y eliminar esta solicitud de registro de usuario?',
+            confirmText: 'Sí, Eliminar',
+            cancelText: 'Cancelar',
+            onConfirm: () => {
+              setUsers(prev => prev.filter(u => u.id !== userId));
+            }
+          });
+        } else {
+          setUsers(prev => prev.filter(u => u.id !== userId));
+        }
+      };
+
+      const handleChangeRole = (userId, newRole) => {
+        setUsers(prev => prev.map(u => {
+          if (u.id === userId) {
+            return { ...u, role: newRole, status: 'ACTIVE' };
+          }
+          return u;
+        }));
+      };
+
+      return (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-800 rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-gray-800 flex items-center justify-between bg-gray-950/60">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-emerald-950 border border-emerald-700 text-emerald-300 rounded-2xl text-xl font-bold">
+                  👥
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-white">Gestión de Usuarios & Solicitudes de Registro</h3>
+                  <p className="text-xs text-gray-400">Panel del Administrador / Jefe para definir roles y aprobar accesos</p>
+                </div>
+              </div>
+              <button
+                onClick={onClose}
+                className="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white flex items-center justify-center text-sm font-bold transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1">
+              {/* SECTION 1: SOLICITUDES PENDIENTES */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center space-x-1.5">
+                    <span>⏳ Solicitudes Pendientes de Aprobación</span>
+                    <span className="bg-amber-950 border border-amber-700 text-amber-300 rounded-full px-2 py-0.5 text-[10px] font-black">
+                      {pendingUsers.length}
+                    </span>
+                  </h4>
+                </div>
+
+                {pendingUsers.length === 0 ? (
+                  <div className="p-4 bg-gray-950/40 border border-gray-800/80 rounded-2xl text-center text-xs text-gray-500">
+                    No hay solicitudes de registro pendientes en este momento.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {pendingUsers.map(u => (
+                      <div key={u.id} className="p-4 bg-gray-950/80 border border-amber-900/40 hover:border-amber-700/60 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-xl bg-amber-950 border border-amber-700 text-amber-300 flex items-center justify-center font-bold text-lg">
+                            ⏳
+                          </div>
+                          <div>
+                            <div className="font-bold text-white text-sm">{u.name}</div>
+                            <div className="text-xs text-gray-400">{u.email} • {u.phone}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          {/* Role Selector */}
+                          <select
+                            value={selectedRoles[u.id] || 'THIRD_PARTY'}
+                            onChange={e => setSelectedRoles(prev => ({ ...prev, [u.id]: e.target.value }))}
+                            className="bg-gray-900 border border-gray-700 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold"
+                          >
+                            <option value="EMPLOYEE">👷 Empleado Técnico</option>
+                            <option value="THIRD_PARTY">🔧 Contratista 3ero</option>
+                            <option value="BOSS">👑 Jefe / Admin</option>
+                          </select>
+
+                          <button
+                            onClick={() => handleApprove(u)}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center space-x-1"
+                          >
+                            <span>✓</span>
+                            <span>Aprobar</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleReject(u.id)}
+                            className="px-2.5 py-1.5 bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-800 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* SECTION 2: USUARIOS ACTIVOS */}
+              <div className="space-y-3 pt-4 border-t border-gray-800">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center space-x-1.5">
+                  <span>👥 Usuarios Activos ({activeUsers.length})</span>
+                </h4>
+
+                <div className="space-y-2">
+                  {activeUsers.map(u => (
+                    <div key={u.id} className="p-3 bg-gray-950/40 border border-gray-800/80 rounded-2xl flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 rounded-lg bg-gray-900 border border-gray-800 flex items-center justify-center font-bold text-sm">
+                          {u.role === 'BOSS' ? '👑' : u.role === 'THIRD_PARTY' ? '🔧' : '👷'}
+                        </div>
+                        <div>
+                          <div className="font-bold text-white text-xs">{u.name}</div>
+                          <div className="text-[11px] text-gray-400">{u.email}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <select
+                          value={u.role}
+                          onChange={e => handleChangeRole(u.id, e.target.value)}
+                          className="bg-gray-900 border border-gray-800 rounded-lg px-2.5 py-1 text-[11px] text-gray-300 focus:outline-none focus:border-emerald-500 font-semibold"
+                        >
+                          <option value="BOSS">👑 Jefe / Admin</option>
+                          <option value="EMPLOYEE">👷 Empleado Técnico</option>
+                          <option value="THIRD_PARTY">🔧 Contratista 3ero</option>
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-gray-800 bg-gray-950/60 flex justify-end">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Cerrar Panel
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- MAIN APP COMPONENT ---
+    function App() {
+      const [appAlert, setAppAlert] = useState(null);
+
+      // LocalStorage Sync
+      const [users, setUsers] = useState(() => {
+        try {
+          const saved = localStorage.getItem('cal_users');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          }
+        } catch (e) {}
+        return DEFAULT_USERS;
+      });
+
+      const [tasks, setTasks] = useState(() => {
+        try {
+          const saved = localStorage.getItem('cal_tasks');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) return parsed;
+          }
+        } catch (e) {}
+        return getInitialTasks();
+      });
+
+      const [whatsAppLogs, setWhatsAppLogs] = useState(() => {
+        try {
+          const saved = localStorage.getItem('cal_wa_logs');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) return parsed;
+          }
+        } catch (e) {}
+        return getInitialWhatsAppLogs();
+      });
+
+      const [projects, setProjects] = useState(() => {
+        try {
+          const saved = localStorage.getItem('cal_projects');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) return parsed;
+          }
+        } catch (e) {}
+        return DEFAULT_PROJECTS;
+      });
+
+      const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+      const [currentUser, setCurrentUser] = useState(() => {
+        try {
+          const savedUserId = localStorage.getItem('cal_logged_user_id');
+          if (savedUserId) {
+            const found = users.find(u => u.id === savedUserId);
+            if (found) return found;
+          }
+        } catch (e) {}
+        return users[0] || DEFAULT_USERS[0];
+      });
+
+      const handleLogin = (userToLogin, remember = true) => {
+        setCurrentUser(userToLogin);
+        setIsLoggedIn(true);
+        localStorage.setItem('cal_logged_user_id', userToLogin.id);
+        if (remember) {
+          localStorage.setItem('cal_is_logged_in', JSON.stringify(true));
+        }
+      };
+
+      const handleLogout = () => {
+        setIsLoggedIn(false);
+        localStorage.setItem('cal_is_logged_in', JSON.stringify(false));
+      };
+      const [selectedUserFilter, setSelectedUserFilter] = useState('');
+      const [selectedProjectFilter, setSelectedProjectFilter] = useState('');
+      const [viewMode, setViewMode] = useState('WEEK'); // 'DAY' | 'WEEK' | 'MONTH' | 'AGENDA'
+      const [currentDate, setCurrentDate] = useState(new Date());
+      const [now, setNow] = useState(new Date());
+
+      const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+      const [whatsAppPromptQueue, setWhatsAppPromptQueue] = useState([]);
+      const [isCompletedLogsModalOpen, setIsCompletedLogsModalOpen] = useState(false);
+      const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
+      const [openFolderId, setOpenFolderId] = useState(null);
+      const [folderTaskTab, setFolderTaskTab] = useState('ALL'); // 'ALL' | 'COMPLETED' | 'PENDING'
+      const [isUserMgmtModalOpen, setIsUserMgmtModalOpen] = useState(false);
+      const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
+      const [newTaskDefaults, setNewTaskDefaults] = useState({});
+      const [selectedTask, setSelectedTask] = useState(null);
+      const [taskToDelete, setTaskToDelete] = useState(null);
+      const [auctionAlertModal, setAuctionAlertModal] = useState(null);
+      const [isParticipantsOpen, setIsParticipantsOpen] = useState(false);
+      const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+      const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+      const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+      const handleRegisterUser = (newUser) => {
+        setUsers(prev => [...prev, newUser]);
+      };
+
+      // Drag selection state
+      const [dragState, setDragState] = useState(null);
+
+      useEffect(() => {
+        localStorage.setItem('cal_users', JSON.stringify(users));
+      }, [users]);
+
+      useEffect(() => {
+        localStorage.setItem('cal_projects', JSON.stringify(projects));
+      }, [projects]);
+
+      useEffect(() => {
+        localStorage.setItem('cal_tasks', JSON.stringify(tasks));
+      }, [tasks]);
+
+      useEffect(() => {
+        localStorage.setItem('cal_wa_logs', JSON.stringify(whatsAppLogs));
+      }, [whatsAppLogs]);
+
+      useEffect(() => {
+        const interval = setInterval(() => setNow(new Date()), 60000);
+        return () => clearInterval(interval);
+      }, []);
+
+      // Date Nav
+      const handlePrevDate = () => {
+        const newD = new Date(currentDate);
+        if (viewMode === 'DAY') newD.setDate(newD.getDate() - 1);
+        else if (viewMode === 'WEEK') newD.setDate(newD.getDate() - 7);
+        else if (viewMode === 'MONTH') newD.setMonth(newD.getMonth() - 1);
+        else newD.setDate(newD.getDate() - 1);
+        setCurrentDate(newD);
+      };
+
+      const handleNextDate = () => {
+        const newD = new Date(currentDate);
+        if (viewMode === 'DAY') newD.setDate(newD.getDate() + 1);
+        else if (viewMode === 'WEEK') newD.setDate(newD.getDate() + 7);
+        else if (viewMode === 'MONTH') newD.setMonth(newD.getMonth() + 1);
+        else newD.setDate(newD.getDate() + 1);
+        setCurrentDate(newD);
+      };
+
+      const handleToday = () => setCurrentDate(new Date());
+
+      // Date helpers
+      const getStartOfWeek = (d) => {
+        const date = new Date(d);
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        return new Date(date.setDate(diff));
+      };
+
+      const startOfWeek = getStartOfWeek(currentDate);
+      const weekDays = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(startOfWeek);
+        d.setDate(d.getDate() + i);
+        return d;
+      });
+
+      const hours = Array.from({ length: 13 }, (_, i) => i + 8); // 8 AM - 8 PM
+      const getTaskAssignedIds = (t) => {
+        if (!t) return [];
+        if (Array.isArray(t.assignedToIds) && t.assignedToIds.length > 0) {
+          return t.assignedToIds;
+        }
+        return t.assignedToId ? [t.assignedToId] : [];
+      };
+
+      const getTaskAssignedUsers = (t, userList = users) => {
+        const ids = getTaskAssignedIds(t);
+        return userList.filter(u => ids.includes(u.id));
+      };
+
+      const ROW_HEIGHT = 80;
+
+      // Open Auction Tasks count
+      const openAuctions = tasks.filter(t => t.status === 'OPEN_AUCTION' || getTaskAssignedIds(t).length === 0);
+
+      // Filtered Tasks
+      const filteredTasks = tasks.filter((t) => {
+        if (t.status === 'CANCELLED') return false;
+        if (selectedProjectFilter && t.projectId !== selectedProjectFilter) return false;
+
+        const assignedIds = getTaskAssignedIds(t);
+        const assignedUsers = getTaskAssignedUsers(t, users);
+        const hasContractor = assignedUsers.some(u => u.role === 'THIRD_PARTY');
+
+        // Si es Asunto Personal: es visible para el usuario asignado/creador Y TAMBIÉN para el Jefe (para gestión de bloqueo de horario)
+        if (t.isPersonal) {
+          if (currentUser.role === 'BOSS') {
+            if (selectedUserFilter) {
+              return assignedIds.includes(selectedUserFilter);
+            }
+            return true;
+          }
+          return assignedIds.includes(currentUser.id) || t.createdById === currentUser.id;
+        }
+
+        // Subastas libres son visibles para todos
+        if (t.status === 'OPEN_AUCTION' || assignedIds.length === 0) return true;
+
+        if (currentUser.role === 'BOSS') {
+          if (selectedUserFilter) {
+            return assignedIds.includes(selectedUserFilter);
+          }
+          return true;
+        }
+
+        // Si es Empleado Técnico: ve sus tareas, las que creó Y TAMBIÉN los trabajos de contratistas 3eros
+        if (currentUser.role === 'EMPLOYEE') {
+          return assignedIds.includes(currentUser.id) || t.createdById === currentUser.id || hasContractor;
+        }
+
+        // Si es Contratista 3ero: ve sus trabajos asignados o creados por él
+        return assignedIds.includes(currentUser.id) || t.createdById === currentUser.id;
+      });
+
+      // Cell Click & Drag Handlers
+      const handleCellClick = (day, hour = 9) => {
+        const yyyy = day.getFullYear();
+        const mm = String(day.getMonth() + 1).padStart(2, '0');
+        const dd = String(day.getDate()).padStart(2, '0');
+        const startH = hour < 10 ? `0${hour}:00` : `${hour}:00`;
+        const nextH = hour + 2 > 20 ? 20 : hour + 2;
+        const endH = nextH < 10 ? `0${nextH}:00` : `${nextH}:00`;
+
+        setNewTaskDefaults({
+          dateStr: `${yyyy}-${mm}-${dd}`,
+          startTimeStr: startH,
+          endTimeStr: endH
+        });
+        setIsParticipantsOpen(false);
+        setIsNewTaskModalOpen(true);
+      };
+
+      const handleMouseDownCell = (day, hour) => {
+        setDragState({
+          isDragging: true,
+          day,
+          startHour: hour,
+          currentHour: hour
+        });
+      };
+
+      const handleMouseEnterCell = (hour) => {
+        if (dragState && dragState.isDragging) {
+          setDragState(prev => ({ ...prev, currentHour: hour }));
+        }
+      };
+
+      const handleMouseUpCell = () => {
+        if (dragState && dragState.isDragging && dragState.day && dragState.startHour !== undefined) {
+          const day = dragState.day;
+          const startH = Math.min(dragState.startHour, dragState.currentHour ?? dragState.startHour);
+          const endH = Math.max(dragState.startHour, dragState.currentHour ?? dragState.startHour) + 1;
+
+          const yyyy = day.getFullYear();
+          const mm = String(day.getMonth() + 1).padStart(2, '0');
+          const dd = String(day.getDate()).padStart(2, '0');
+
+          setNewTaskDefaults({
+            dateStr: `${yyyy}-${mm}-${dd}`,
+            startTimeStr: startH < 10 ? `0${startH}:00` : `${startH}:00`,
+            endTimeStr: endH < 10 ? `0${endH}:00` : `${endH}:00`
+          });
+          setIsParticipantsOpen(false);
+          setIsNewTaskModalOpen(true);
+        }
+        setDragState(null);
+      };
+
+      // Create Task Logic (Multi-Participant & Private Personal Events)
+      const handleCreateTask = ({ title, description, location, dateStr, startTimeStr, endTimeStr, assignedToIds = [], isPersonal, isAuction, projectId }) => {
+        const start = new Date(`${dateStr}T${startTimeStr}:00`);
+        const end = new Date(`${dateStr}T${endTimeStr}:00`);
+
+        if (start >= end) {
+          setAppAlert({
+            type: 'ERROR',
+            title: '⚠️ Horario Inválido',
+            message: 'La hora de inicio de la tarea debe ser anterior a la hora de fin.'
+          });
+          return false;
+        }
+
+        const isPersonalTask = Boolean(isPersonal);
+        const isUnassignedAuction = Boolean(isAuction) && !isPersonalTask;
+
+        // Si es Asunto Personal, se asigna ÚNICAMENTE al usuario actual
+        const finalAssignedIds = isPersonalTask
+          ? [currentUser.id]
+          : (isUnassignedAuction ? [] : (assignedToIds.length > 0 ? assignedToIds : [currentUser.id]));
+
+        // Restricción: Los contratistas 3eros no pueden asignar tareas a empleados ni al jefe
+        if (currentUser.role === 'THIRD_PARTY') {
+          const hasCompanyStaff = finalAssignedIds.some(id => {
+            const u = users.find(user => user.id === id);
+            return u && (u.role === 'EMPLOYEE' || u.role === 'BOSS');
+          });
+          if (hasCompanyStaff) {
+            setAppAlert({
+              type: 'ERROR',
+              title: '🚫 Restricción de Asignación',
+              message: 'Los contratistas y partners 3eros no pueden asignar trabajos al personal de la empresa.'
+            });
+            return false;
+          }
+        }
+
+        if (!isUnassignedAuction) {
+          // Check Overlap for EVERY selected worker/participant
+          for (const targetUserId of finalAssignedIds) {
+            const targetUser = users.find(u => u.id === targetUserId);
+            const overlap = tasks.find(t => {
+              if (t.status === 'CANCELLED') return false;
+              const taskAssignedIds = getTaskAssignedIds(t);
+              if (!taskAssignedIds.includes(targetUserId)) return false;
+              const tStart = new Date(t.startTime);
+              const tEnd = new Date(t.endTime);
+              return tStart < end && tEnd > start;
+            });
+
+            if (overlap) {
+              const conflictStart = new Date(overlap.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+              const conflictEnd = new Date(overlap.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+              setAppAlert({
+                type: 'WARNING',
+                title: `⚠️ Horario Bloqueado para ${targetUser?.name || 'Participante'}`,
+                message: `El usuario ya tiene agendado el trabajo '${overlap.title}' de ${conflictStart} a ${conflictEnd}.\n\nPuedes seleccionar a otros participantes o ajustar el horario.`
+              });
+              return false;
+            }
+          }
+        }
+
+        const newTask = {
+          id: 'task-' + Date.now(),
+          title: isUnassignedAuction && !title.includes('SUBASTA') ? `⚡ SUBASTA: ${title}` : title,
+          description,
+          location,
+          startTime: `${dateStr}T${startTimeStr}:00`,
+          endTime: `${dateStr}T${endTimeStr}:00`,
+          status: isUnassignedAuction ? 'OPEN_AUCTION' : 'PENDING',
+          isPersonal: Boolean(isPersonal),
+          isAuction: isUnassignedAuction,
+          assignedToId: isUnassignedAuction ? null : finalAssignedIds[0],
+          assignedToIds: isUnassignedAuction ? [] : finalAssignedIds,
+          createdById: currentUser.id,
+          projectId: isPersonalTask ? null : (projectId || null)
+        };
+
+        setTasks(prev => [...prev, newTask]);
+
+        // Auto WhatsApp Notification for all participants
+        if (!isUnassignedAuction) {
+          const newPrompts = [];
+          finalAssignedIds.forEach(targetUserId => {
+            if (targetUserId !== currentUser.id) {
+              const targetUser = users.find(u => u.id === targetUserId);
+              if (targetUser) {
+                const formattedDate = start.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+                const otherNames = users
+                  .filter(u => finalAssignedIds.includes(u.id) && u.id !== targetUser.id)
+                  .map(u => u.name)
+                  .join(', ');
+
+                const msg = `NUEVA ASIGNACIÓN DE TRABAJO\n\nHola ${targetUser.name}, ${currentUser.name} te ha asignado al trabajo:\nTrabajo: ${newTask.title}\nFecha: ${formattedDate}\nHorario: ${startTimeStr} - ${endTimeStr}\n${otherNames ? `Participantes: ${targetUser.name}, ${otherNames}\n` : ''}${location ? `Ubicación: ${location}\n` : ''}${description ? `Detalles: ${description}\n` : ''}\nNota: Horario reservado en tu agenda.`;
+
+                const cleanPhone = (targetUser.phone || '').replace(/[^0-9]/g, '');
+                const waUrl = cleanPhone
+                  ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`
+                  : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+
+                const logEntry = {
+                  id: 'log-' + Date.now() + Math.random(),
+                  recipientName: targetUser.name,
+                  recipientPhone: targetUser.phone,
+                  message: msg,
+                  waUrl: waUrl,
+                  status: 'DIRECT_WHATSAPP',
+                  sentAt: new Date().toISOString()
+                };
+
+                setWhatsAppLogs(prev => [logEntry, ...prev]);
+                newPrompts.push(logEntry);
+              }
+            }
+          });
+
+          if (newPrompts.length > 0) {
+            setWhatsAppPromptQueue(prev => [...prev, ...newPrompts]);
+          }
+        }
+
+        return true;
+      };
+
+      // ⚡ CLAIM AUCTION TASK LOGIC (FIRST COME FIRST SERVED - THIRD PARTY ONLY)
+      const handleClaimAuctionTask = (taskId) => {
+        const targetTask = tasks.find(t => t.id === taskId);
+        if (!targetTask) return;
+
+        // 1. Role Restriction: Only THIRD_PARTY (Contratistas 3eros & Partners) can claim open auctions!
+        if (currentUser.role !== 'THIRD_PARTY') {
+          setAuctionAlertModal({
+            type: 'ERROR',
+            title: '🚫 Subasta Exclusiva para Contratistas 3eros',
+            message: `Hola ${currentUser.name}. Las subastas abiertas están destinadas únicamente para contratistas y partners externos (3eros). Tu usuario actual (${currentUser.role === 'BOSS' ? 'Jefe / Admin' : 'Empleado Técnico'}) no puede postularse ni ganar subastas.`
+          });
+          return;
+        }
+
+        // 2. Check if already claimed
+        if (targetTask.assignedToId && targetTask.status !== 'OPEN_AUCTION') {
+          setAuctionAlertModal({
+            type: 'ERROR',
+            title: '⚠️ Trabajo Ya Reclamado',
+            message: 'Este trabajo ya fue reclamado por otro contratista o partner.'
+          });
+          return;
+        }
+
+        // 3. Check schedule conflict for claiming user
+        const start = new Date(targetTask.startTime);
+        const end = new Date(targetTask.endTime);
+
+        const overlap = tasks.find(t => {
+          if (t.id === taskId || t.status === 'CANCELLED' || t.assignedToId !== currentUser.id) return false;
+          const tStart = new Date(t.startTime);
+          const tEnd = new Date(t.endTime);
+          return tStart < end && tEnd > start;
+        });
+
+        if (overlap) {
+          const conflictStart = new Date(overlap.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+          const conflictEnd = new Date(overlap.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+          setAuctionAlertModal({
+            type: 'ERROR',
+            title: '⚠️ Horario Ocupado en tu Itinerario',
+            message: `No puedes reclamar este trabajo porque ya tienes agendada la tarea '${overlap.title}' de ${conflictStart} a ${conflictEnd} en tu agenda personal.`
+          });
+          return;
+        }
+
+        // 4. Assign task to current user!
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              assignedToId: currentUser.id,
+              status: 'PENDING',
+              isAuction: false
+            };
+          }
+          return t;
+        }));
+
+        // Trigger WhatsApp confirmation
+        const formattedDate = start.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+        const startH = start.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        const endH = end.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
+        const msg = `TRABAJO RECLAMADO (SUBASTA)\n\nHola ${currentUser.name}, has reclamado exitosamente el trabajo:\nTrabajo: ${targetTask.title}\nFecha: ${formattedDate}\nHorario: ${startH} - ${endH}\n${targetTask.location ? `Ubicación: ${targetTask.location}\n` : ''}\nNota: Este horario ha sido reservado en tu itinerario.`;
+
+        setWhatsAppLogs(prev => [
+          {
+            id: 'log-' + Date.now(),
+            recipientName: currentUser.name,
+            recipientPhone: currentUser.phone,
+            message: msg,
+            status: 'DIRECT_WHATSAPP',
+            sentAt: new Date().toISOString()
+          },
+          ...prev
+        ]);
+
+        setSelectedTask(null);
+
+        // 5. Open victory modal in app style
+        setAuctionAlertModal({
+          type: 'SUCCESS',
+          title: '🏆 ¡Ganaste la Subasta de Trabajo!',
+          message: `¡Felicidades, ${currentUser.name}! Fuiste el primero en reclamarlo. El trabajo ha sido asignado a tu perfil y tu horario ha quedado bloqueado automáticamente.`,
+          taskTitle: targetTask.title,
+          dateStr: formattedDate,
+          timeStr: `${startH} - ${endH}`,
+          location: targetTask.location
+        });
+      };
+
+      // Employee Joining / Leaving Contractor Tasks
+      const handleJoinTask = (taskId) => {
+        const targetTask = tasks.find(t => t.id === taskId);
+        if (!targetTask) return;
+
+        const start = new Date(targetTask.startTime);
+        const end = new Date(targetTask.endTime);
+
+        // Check schedule conflict for current employee
+        const overlap = tasks.find(t => {
+          if (t.id === taskId || t.status === 'CANCELLED') return false;
+          const taskAssignedIds = getTaskAssignedIds(t);
+          if (!taskAssignedIds.includes(currentUser.id)) return false;
+          const tStart = new Date(t.startTime);
+          const tEnd = new Date(t.endTime);
+          return tStart < end && tEnd > start;
+        });
+
+        if (overlap) {
+          const conflictStart = new Date(overlap.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+          const conflictEnd = new Date(overlap.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+          setAuctionAlertModal({
+            type: 'ERROR',
+            title: '⚠️ Horario Ocupado en tu Agenda',
+            message: `No puedes unirte a este trabajo porque ya tienes la tarea '${overlap.title}' de ${conflictStart} a ${conflictEnd}.`
+          });
+          return;
+        }
+
+        // Add employee to task
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId) {
+            const currentIds = getTaskAssignedIds(t);
+            const newIds = Array.from(new Set([...currentIds, currentUser.id]));
+            return {
+              ...t,
+              assignedToIds: newIds,
+              assignedToId: newIds[0]
+            };
+          }
+          return t;
+        }));
+
+        setSelectedTask(null);
+
+        // Simulated WhatsApp log for joining
+        const formattedDate = start.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+        const startH = start.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+        const endH = end.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
+        const msg = `INCORPORACIÓN A TRABAJO\n\nEl empleado ${currentUser.name} se ha unido al trabajo:\nTrabajo: ${targetTask.title}\nFecha: ${formattedDate}\nHorario: ${startH} - ${endH}\nUbicación: ${targetTask.location || 'No especificada'}\nNota: Horario reservado en el itinerario de ${currentUser.name}.`;
+
+        setWhatsAppLogs(prev => [
+          {
+            id: 'log-' + Date.now(),
+            recipientName: currentUser.name,
+            recipientPhone: currentUser.phone,
+            message: msg,
+            status: 'DIRECT_WHATSAPP',
+            sentAt: new Date().toISOString()
+          },
+          ...prev
+        ]);
+
+        setAuctionAlertModal({
+          type: 'SUCCESS',
+          title: '🤝 ¡Te has unido al trabajo!',
+          message: `Te has incorporado como participante en '${targetTask.title}'. Tu horario ha sido reservado automáticamente.`,
+          taskTitle: targetTask.title,
+          dateStr: formattedDate,
+          timeStr: `${startH} - ${endH}`,
+          location: targetTask.location
+        });
+      };
+
+      const handleLeaveTask = (taskId) => {
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId) {
+            const currentIds = getTaskAssignedIds(t);
+            const newIds = currentIds.filter(id => id !== currentUser.id);
+            return {
+              ...t,
+              assignedToIds: newIds,
+              assignedToId: newIds[0] || null
+            };
+          }
+          return t;
+        }));
+
+        setSelectedTask(null);
+
+        setAuctionAlertModal({
+          type: 'SUCCESS',
+          title: '👋 Te has retirado del trabajo',
+          message: `Has dejado de formar parte de este trabajo. Tu horario ha quedado libre.`
+        });
+      };
+
+      // Task Status Update & Delete
+      const handleUpdateTaskStatus = (taskId, newStatus) => {
+        let completionAlert = null;
+
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId) {
+            let updatedTask = { ...t, status: newStatus };
+
+            if (newStatus === 'COMPLETED') {
+              const nowTime = new Date();
+              const scheduledEnd = new Date(t.endTime);
+
+              updatedTask.completedAt = nowTime.toISOString();
+              updatedTask.completedBy = currentUser.name;
+
+              // If completing before scheduled end time, update endTime to current time to free schedule
+              if (nowTime < scheduledEnd && nowTime > new Date(t.startTime)) {
+                const pad = (n) => String(n).padStart(2, '0');
+                const formattedNowEnd = `${nowTime.getFullYear()}-${pad(nowTime.getMonth() + 1)}-${pad(nowTime.getDate())}T${pad(nowTime.getHours())}:${pad(nowTime.getMinutes())}:00`;
+
+                updatedTask.originalEndTime = t.endTime;
+                updatedTask.endTime = formattedNowEnd;
+
+                const savedMinutes = Math.round((scheduledEnd - nowTime) / (1000 * 60));
+                const origEndH = scheduledEnd.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                const newEndH = nowTime.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
+                completionAlert = {
+                  type: 'SUCCESS',
+                  title: '⏰ ¡Horario Liberado Anticipadamente!',
+                  message: `El trabajo '${t.title}' fue completado a las ${newEndH} (antes del fin programado de las ${origEndH}).\n\n✨ ¡Se han liberado ${savedMinutes} minutos en la agenda para nuevas reservaciones!`,
+                  taskTitle: t.title,
+                  dateStr: nowTime.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }),
+                  timeStr: `Hora final ajustada a ${newEndH} (Ahorro: ${savedMinutes} min)`
+                };
+              } else {
+                completionAlert = {
+                  type: 'SUCCESS',
+                  title: '✅ Trabajo Completado',
+                  message: `El trabajo '${t.title}' ha sido completado y registrado exitosamente en la Bitácora de Actividades.`,
+                  taskTitle: t.title,
+                  dateStr: nowTime.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }),
+                  timeStr: `Finalizado por ${currentUser.name}`
+                };
+              }
+            }
+
+            return updatedTask;
+          }
+          return t;
+        }));
+
+        setSelectedTask(null);
+
+        if (completionAlert) {
+          setAuctionAlertModal(completionAlert);
+        }
+      };
+
+      const handleDeleteTask = (taskId) => {
+        const targetTask = tasks.find(t => t.id === taskId);
+        if (targetTask) {
+          const assignedUsers = getTaskAssignedUsers(targetTask, users);
+          const hasContractor = assignedUsers.some(u => u.role === 'THIRD_PARTY');
+          if (currentUser.role === 'EMPLOYEE' && hasContractor) {
+            setAuctionAlertModal({
+              type: 'ERROR',
+              title: '🚫 Acción Restringida',
+              message: 'Los empleados técnicos no tienen permitido eliminar los trabajos de los contratistas o partners 3eros.'
+            });
+            setTaskToDelete(null);
+            return;
+          }
+        }
+        setTasks(prev => prev.filter(t => t.id !== taskId));
+        setTaskToDelete(null);
+        setSelectedTask(null);
+      };
+
+      // Month View Days
+      const getMonthDays = (d) => {
+        const year = d.getFullYear();
+        const month = d.getMonth();
+        const firstDayOfMonth = new Date(year, month, 1);
+        const dayOfWeek = firstDayOfMonth.getDay();
+        const startOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        const startDate = new Date(firstDayOfMonth);
+        startDate.setDate(startDate.getDate() - startOffset);
+
+        return Array.from({ length: 35 }, (_, i) => {
+          const day = new Date(startDate);
+          day.setDate(day.getDate() + i);
+          return day;
+        });
+      };
+      const monthDays = getMonthDays(currentDate);
+
+      // Current Time Red Line Position
+      const nowHour = now.getHours() + now.getMinutes() / 60;
+      const showRedLine = nowHour >= 8 && nowHour <= 20;
+      const redLineTopPx = (nowHour - 8) * ROW_HEIGHT;
+
+      // Overlap Layout Helper
+      const getTaskColumnLayout = (task, dayTasks) => {
+        const taskStart = new Date(task.startTime).getTime();
+        const taskEnd = new Date(task.endTime).getTime();
+
+        const overlaps = dayTasks.filter(t => {
+          const s = new Date(t.startTime).getTime();
+          const e = new Date(t.endTime).getTime();
+          return s < taskEnd && e > taskStart;
+        });
+
+        overlaps.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime() || a.id.localeCompare(b.id));
+
+        const totalCols = overlaps.length;
+        const colIndex = overlaps.findIndex(t => t.id === task.id);
+        const widthPercent = 100 / totalCols;
+        const leftPercent = colIndex * widthPercent;
+
+        return {
+          left: `${leftPercent}%`,
+          width: `calc(${widthPercent}% - 2px)`
+        };
+      };
+
+      const completedTasks = tasks.filter(t => t.status === 'COMPLETED');
+      const pendingUsersCount = users.filter(u => u.status === 'PENDING_APPROVAL' || u.role === 'PENDING').length;
+
+      if (!isLoggedIn) {
+        return <LoginScreen users={users} onLogin={handleLogin} onRegister={handleRegisterUser} />;
+      }
+
+      return (
+        <div className="min-h-screen flex flex-col bg-gray-950" onMouseUp={handleMouseUpCell}>
+          {/* HEADER PRINCIPAL UNIFICADO Y OPTIMIZADO */}
+          <header className="bg-gray-900/90 border-b border-gray-800 sticky top-0 z-30 backdrop-blur-md px-4 lg:px-8 h-14 flex items-center justify-between shadow-xl">
+            {/* Left: Minimal Brand Badge & Quick Access Modals */}
+            <div className="flex items-center space-x-3 text-xs">
+              <div className="flex items-center space-x-2 font-extrabold text-white text-sm tracking-tight pr-2 border-r border-gray-800">
+                <span className="text-base">📅</span>
+                <span>Calendario</span>
+              </div>
+
+              <div className="hidden sm:flex items-center space-x-2">
+                <button
+                  onClick={() => setIsCompletedLogsModalOpen(true)}
+                  className="px-2.5 py-1.5 bg-gray-950 hover:bg-gray-900 border border-gray-800 text-gray-300 hover:text-white rounded-xl font-semibold transition-all flex items-center space-x-1 cursor-pointer"
+                >
+                  <span>📋 Bitácora</span>
+                  <span className="bg-indigo-900 text-indigo-200 rounded-full px-1.5 text-[10px] font-bold">{completedTasks.length}</span>
+                </button>
+
+                <button
+                  onClick={() => setIsProjectsModalOpen(true)}
+                  className="px-2.5 py-1.5 bg-gray-950 hover:bg-gray-900 border border-gray-800 text-gray-300 hover:text-white rounded-xl font-semibold transition-all flex items-center space-x-1 cursor-pointer"
+                >
+                  <span>📂 Proyectos</span>
+                  <span className="bg-purple-900 text-purple-200 rounded-full px-1.5 text-[10px] font-bold">{projects.length}</span>
+                </button>
+
+                <button
+                  onClick={() => setIsWhatsAppModalOpen(true)}
+                  className="px-2.5 py-1.5 bg-gray-950 hover:bg-gray-900 border border-gray-800 text-gray-300 hover:text-white rounded-xl font-semibold transition-all flex items-center space-x-1 cursor-pointer"
+                >
+                  <span>💬 WhatsApp</span>
+                  <span className="bg-emerald-900 text-emerald-200 rounded-full px-1.5 text-[10px] font-bold">{whatsAppLogs.length}</span>
+                </button>
+
+                {currentUser.role === 'BOSS' && (
+                  <button
+                    onClick={() => setIsUserMgmtModalOpen(true)}
+                    className="px-2.5 py-1.5 bg-gray-950 hover:bg-gray-900 border border-gray-800 text-gray-300 hover:text-white rounded-xl font-semibold transition-all flex items-center space-x-1.5 cursor-pointer"
+                  >
+                    <span>👥 Usuarios</span>
+                    {pendingUsersCount > 0 ? (
+                      <span className="bg-amber-500 text-gray-950 font-black px-1.5 py-0.5 rounded-full text-[10px] animate-pulse">
+                        {pendingUsersCount}
+                      </span>
+                    ) : (
+                      <span className="bg-gray-800 text-gray-400 rounded-full px-1.5 text-[10px] font-bold">{users.length}</span>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Primary Action & User Profile Switcher */}
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => {
+                  const dateStr = currentDate.toISOString().split('T')[0];
+                  setNewTaskDefaults({ dateStr, startTimeStr: '09:00', endTimeStr: '11:00' });
+                  setIsParticipantsOpen(false);
+                  setIsNewTaskModalOpen(true);
+                }}
+                className="flex items-center space-x-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 text-xs transition-all cursor-pointer"
+              >
+                <span>+ {currentUser.role === 'BOSS' ? 'Lanzar Subasta / Asignar' : 'Agendar Tarea'}</span>
+              </button>
+
+              {/* User Selector Dropdown Pill */}
+              <div className="relative">
+                <button
+                  onClick={() => setIsUserDropdownOpen(prev => !prev)}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all shadow-sm cursor-pointer ${
+                    currentUser.role === 'BOSS'
+                      ? 'bg-amber-950/80 border-amber-700 text-amber-300'
+                      : currentUser.role === 'THIRD_PARTY'
+                      ? 'bg-teal-950/80 border-teal-700 text-teal-300'
+                      : 'bg-emerald-950/80 border-emerald-700 text-emerald-300'
+                  }`}
+                >
+                  <span>{currentUser.role === 'BOSS' ? '👑' : currentUser.role === 'THIRD_PARTY' ? '🔧' : '👷'}</span>
+                  <span className="truncate max-w-[130px] hidden lg:inline-block">
+                    {currentUser.name.split(' ')[0]} ({currentUser.role === 'BOSS' ? 'Jefe' : currentUser.role === 'THIRD_PARTY' ? '3ero' : 'Empleado'})
+                  </span>
+                  <span className="text-[10px] text-gray-400">{isUserDropdownOpen ? '▲' : '▼'}</span>
+                </button>
+
+                {isUserDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl py-1.5 z-50 divide-y divide-gray-800/60 backdrop-blur-md">
+                    <div className="px-3.5 py-2 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Cambiar Perfil Activo</div>
+                    <div className="py-1">
+                      {users.map(u => (
+                        <button
+                          key={u.id}
+                          onClick={() => { setCurrentUser(u); setIsUserDropdownOpen(false); }}
+                          className={`w-full px-3.5 py-2 text-left text-xs font-semibold flex items-center justify-between transition-colors ${
+                            currentUser.id === u.id ? 'bg-emerald-600/30 text-white font-bold' : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2 truncate">
+                            <span>{u.role === 'BOSS' ? '👑' : u.role === 'THIRD_PARTY' ? '🔧' : '👷'}</span>
+                            <span className="truncate">{u.name}</span>
+                          </div>
+                          {currentUser.id === u.id && <span className="text-emerald-400 font-bold">✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="pt-1.5 px-1.5">
+                      <button
+                        onClick={() => { setIsUserDropdownOpen(false); handleLogout(); }}
+                        className="w-full px-3 py-2 text-left text-xs font-bold text-red-400 hover:bg-red-950/60 hover:text-red-300 rounded-xl transition-colors flex items-center space-x-2 cursor-pointer"
+                      >
+                        <span>🚪</span>
+                        <span>Cerrar Sesión</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </header>
+
+          {/* MAIN CONTENT AREA */}
+          <main className="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              {/* LEFT SIDEBAR (COLLAPSIBLE) */}
+              {isSidebarOpen && (
+                <div className="lg:col-span-3 space-y-4">
+                  {/* Mini Calendar */}
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl space-y-3">
+                    <div className="flex items-center justify-between text-xs font-bold text-gray-200 pb-2 border-b border-gray-800">
+                      <span className="capitalize">
+                        {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+                      </span>
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={() => {
+                            const d = new Date(currentDate);
+                            d.setMonth(d.getMonth() - 1);
+                            setCurrentDate(d);
+                          }}
+                          className="p-1 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800"
+                        >◄</button>
+                        <button
+                          onClick={() => {
+                            const d = new Date(currentDate);
+                            d.setMonth(d.getMonth() + 1);
+                            setCurrentDate(d);
+                          }}
+                          className="p-1 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800"
+                        >►</button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-7 text-[10px] font-bold text-gray-500 text-center">
+                      <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
+                    </div>
+
+                    <div className="grid grid-cols-7 gap-1 text-xs text-center">
+                      {monthDays.map((day, idx) => {
+                        const isSelected = day.toDateString() === currentDate.toDateString();
+                        const isToday = day.toDateString() === new Date().toDateString();
+                        const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              setCurrentDate(day);
+                              if (viewMode === 'MONTH') setViewMode('WEEK');
+                            }}
+                            className={`py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                              isSelected
+                                ? 'bg-indigo-600 text-white font-bold shadow'
+                                : isToday
+                                ? 'bg-indigo-950 text-indigo-400 border border-indigo-700/60 font-bold'
+                                : isCurrentMonth
+                                ? 'text-gray-300 hover:bg-gray-800'
+                                : 'text-gray-600 hover:bg-gray-800/50'
+                            }`}
+                          >
+                            {day.getDate()}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Legend */}
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl space-y-2.5 text-xs">
+                    <h4 className="font-bold text-gray-400 uppercase tracking-wider">Leyenda de Colores</h4>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2"><span className="w-3 h-3 rounded-full bg-amber-400 shadow-lg shadow-amber-400/50 animate-pulse" /><span className="text-amber-300 font-bold">⚡ Subasta Abierta (Sin Asignar)</span></div>
+                      <div className="flex items-center space-x-2"><span className="w-3 h-3 rounded-full bg-indigo-500" /><span className="text-gray-300">Asignación Empleado</span></div>
+                      <div className="flex items-center space-x-2"><span className="w-3 h-3 rounded-full bg-amber-600" /><span className="text-gray-300">Contratista / Partner 3ero</span></div>
+                      <div className="flex items-center space-x-2"><span className="w-3 h-3 rounded-full bg-purple-500" /><span className="text-gray-300">Evento Personal</span></div>
+                      <div className="flex items-center space-x-2"><span className="w-3 h-3 rounded-full bg-emerald-500" /><span className="text-gray-300">Trabajo Completado</span></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* RIGHT MAIN VIEWS (DYNAMIC 9 OR 12 COLS) */}
+              <div className={isSidebarOpen ? "lg:col-span-9 space-y-4" : "lg:col-span-12 space-y-4"}>
+                {/* Navigation Header Tabs & Filters */}
+                <div className="flex flex-col md:flex-row items-center justify-between gap-3 bg-gray-900/80 border border-gray-800 rounded-2xl p-3 shadow-xl">
+                  {/* Left: Date Nav & View Modes */}
+                  <div className="flex items-center space-x-2">
+                    <div className="flex items-center bg-gray-950 p-1 rounded-xl border border-gray-800 text-xs font-semibold">
+                      <button onClick={handlePrevDate} className="p-1 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-all">◄</button>
+                      <button onClick={handleToday} className="px-2 py-1 text-indigo-400 hover:bg-indigo-950 font-bold rounded-lg transition-all">Hoy</button>
+                      <button onClick={handleNextDate} className="p-1 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-all">►</button>
+                    </div>
+
+                    <div className="flex bg-gray-950 p-1 rounded-xl border border-gray-800 text-xs font-semibold">
+                      {['DAY', 'WEEK', 'MONTH', 'AGENDA'].map(mode => (
+                        <button
+                          key={mode}
+                          onClick={() => setViewMode(mode)}
+                          className={`px-3 py-1 rounded-lg transition-all ${
+                            viewMode === mode ? 'bg-emerald-600 text-white shadow' : 'text-gray-400 hover:text-gray-200'
+                          }`}
+                        >
+                          {mode === 'DAY' ? 'Día' : mode === 'WEEK' ? 'Semana' : mode === 'MONTH' ? 'Mes' : 'Agenda'}
+                        </button>
+                      ))}
+                    </div>
+
+                    <span className="text-sm font-extrabold text-white pl-2 capitalize hidden sm:inline-block">
+                      {viewMode === 'DAY'
+                        ? currentDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })
+                        : currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+                    </span>
+                  </div>
+
+                  {/* Right: Filters (User & Project) + Sidebar Toggle */}
+                  <div className="flex items-center space-x-2 text-xs">
+                    {/* User Filter */}
+                    {currentUser.role === 'BOSS' && (
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setIsFilterDropdownOpen(prev => !prev)}
+                          className="flex items-center space-x-1.5 bg-gray-950 hover:bg-gray-900 border border-gray-800 rounded-xl px-2.5 py-1.5 text-xs text-gray-300 font-semibold transition-all shadow-sm cursor-pointer"
+                        >
+                          <span className="text-gray-400">👤</span>
+                          <span className="text-white font-extrabold truncate max-w-[120px]">
+                            {selectedUserFilter
+                              ? users.find(u => u.id === selectedUserFilter)?.name.split(' ')[0]
+                              : 'Todos'}
+                          </span>
+                          <span className="text-gray-400 text-[9px]">{isFilterDropdownOpen ? '▲' : '▼'}</span>
+                        </button>
+
+                        {isFilterDropdownOpen && (
+                          <div className="absolute right-0 mt-2 w-64 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl py-1.5 z-50 divide-y divide-gray-800/60 backdrop-blur-md">
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedUserFilter(''); setIsFilterDropdownOpen(false); }}
+                              className={`w-full px-3.5 py-2 text-left text-xs font-semibold flex items-center justify-between transition-colors ${
+                                selectedUserFilter === '' ? 'bg-emerald-600/30 text-emerald-300 font-bold' : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                              }`}
+                            >
+                              <span>👥 Todos los Usuarios</span>
+                              {selectedUserFilter === '' && <span className="text-emerald-400 font-bold">✓</span>}
+                            </button>
+                            <div className="py-1">
+                              {users.map(u => (
+                                <button
+                                  key={u.id}
+                                  type="button"
+                                  onClick={() => { setSelectedUserFilter(u.id); setIsFilterDropdownOpen(false); }}
+                                  className={`w-full px-3.5 py-2 text-left text-xs font-semibold flex items-center justify-between transition-colors ${
+                                    selectedUserFilter === u.id ? 'bg-emerald-600/30 text-emerald-300 font-bold' : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-2 truncate">
+                                    <span>{u.role === 'BOSS' ? '👑' : u.role === 'THIRD_PARTY' ? '🔧' : '👷'}</span>
+                                    <span className="truncate">{u.name}</span>
+                                  </div>
+                                  {selectedUserFilter === u.id && <span className="text-emerald-400 font-bold">✓</span>}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Project Filter */}
+                    <div className="flex items-center space-x-1.5 bg-gray-950 border border-gray-800 rounded-xl px-2.5 py-1.5 text-xs text-gray-300">
+                      <span className="text-gray-400 font-semibold shrink-0">📂</span>
+                      <select
+                        value={selectedProjectFilter}
+                        onChange={(e) => setSelectedProjectFilter(e.target.value)}
+                        className="bg-gray-950 text-gray-200 border-none focus:outline-none cursor-pointer text-xs font-semibold py-0 pr-1 max-w-[130px] truncate"
+                      >
+                        <option value="" className="bg-gray-900 text-gray-100">Todos Proyectos</option>
+                        {projects.map(p => (
+                          <option key={p.id} value={p.id} className="bg-gray-900 text-gray-100">
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Sidebar Toggle */}
+                    <button
+                      onClick={() => setIsSidebarOpen(prev => !prev)}
+                      className="px-2.5 py-1.5 bg-gray-950 hover:bg-gray-900 border border-gray-800 text-gray-400 hover:text-white rounded-xl font-bold transition-all cursor-pointer"
+                      title="Ocultar/Mostrar Mini Calendario"
+                    >
+                      {isSidebarOpen ? 'Panel ◀' : 'Panel ▶'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* WEEK VIEW */}
+                {viewMode === 'WEEK' && (
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
+                    <div className="grid grid-cols-8 border-b border-gray-800 bg-gray-950/90 text-xs font-bold text-gray-400 text-center py-3">
+                      <div className="text-gray-500">Hora</div>
+                      {weekDays.map((day, idx) => {
+                        const isToday = day.toDateString() === new Date().toDateString();
+                        return (
+                          <div
+                            key={idx}
+                            onClick={() => { setCurrentDate(day); setViewMode('DAY'); }}
+                            className={`cursor-pointer hover:bg-indigo-950/40 py-1 rounded-xl ${isToday ? 'text-indigo-400 font-extrabold' : ''}`}
+                          >
+                            <p>{day.toLocaleDateString('es-ES', { weekday: 'short' }).toUpperCase()}</p>
+                            <p className={`text-base ${isToday ? 'bg-indigo-600 text-white rounded-full w-7 h-7 mx-auto flex items-center justify-center' : 'text-gray-200'}`}>
+                              {day.getDate()}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="max-h-[680px] overflow-y-auto relative select-none">
+                      <div className="grid grid-cols-8 relative" style={{ height: `${(hours.length - 1) * ROW_HEIGHT}px` }}>
+                        {/* Time sidebar */}
+                        <div className="border-r border-gray-800 bg-gray-950/40 divide-y divide-gray-800/60">
+                          {hours.slice(0, -1).map(hour => (
+                            <div key={hour} style={{ height: `${ROW_HEIGHT}px` }} className="text-[11px] text-gray-500 font-semibold flex items-start justify-center pt-2 border-b border-gray-800/60">
+                              {hour < 10 ? `0${hour}:00` : `${hour}:00`}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Day columns */}
+                        {weekDays.map((day, dayIdx) => {
+                          const dayStr = day.toDateString();
+                          const isToday = dayStr === new Date().toDateString();
+                          const dayTasks = filteredTasks.filter(t => new Date(t.startTime).toDateString() === dayStr);
+
+                          return (
+                            <div key={dayIdx} className="border-r border-gray-800/40 relative hover:bg-indigo-950/10 transition-colors">
+                              {/* Red time line */}
+                              {isToday && showRedLine && (
+                                <div style={{ top: `${redLineTopPx}px` }} className="absolute left-0 right-0 z-30 flex items-center border-t-2 border-red-500 pointer-events-none">
+                                  <div className="w-2.5 h-2.5 bg-red-500 rounded-full -ml-1.5 -mt-[1px] animate-ping" />
+                                </div>
+                              )}
+
+                              {/* Interactive Hour cells */}
+                              {hours.slice(0, -1).map(hour => {
+                                const isBeingDragged = dragState?.isDragging && dragState.day?.toDateString() === dayStr && hour >= Math.min(dragState.startHour, dragState.currentHour ?? dragState.startHour) && hour <= Math.max(dragState.startHour, dragState.currentHour ?? dragState.startHour);
+
+                                return (
+                                  <div
+                                    key={hour}
+                                    onMouseDown={() => handleMouseDownCell(day, hour)}
+                                    onMouseEnter={() => handleMouseEnterCell(hour)}
+                                    style={{ height: `${ROW_HEIGHT}px` }}
+                                    className={`border-b border-gray-800/40 cursor-pointer transition-all group flex items-start justify-end p-1 ${
+                                      isBeingDragged ? 'bg-indigo-600/30 border-indigo-500' : 'hover:bg-indigo-900/20'
+                                    }`}
+                                  >
+                                    <span className="opacity-0 group-hover:opacity-100 text-[10px] font-semibold text-indigo-400 bg-indigo-950 px-1.5 py-0.5 rounded border border-indigo-800">
+                                      + Agendar {hour}:00
+                                    </span>
+                                  </div>
+                                );
+                              })}
+
+                              {/* TASK CARDS IN PARALLEL */}
+                              {dayTasks.map(t => {
+                                const start = new Date(t.startTime);
+                                const end = new Date(t.endTime);
+                                const startFloat = start.getHours() + start.getMinutes() / 60;
+                                const endFloat = end.getHours() + end.getMinutes() / 60;
+                                const clampedStart = Math.max(8, Math.min(20, startFloat));
+                                const clampedEnd = Math.max(8, Math.min(20, endFloat));
+
+                                const topPx = (clampedStart - 8) * ROW_HEIGHT;
+                                const heightPx = Math.max(45, (clampedEnd - clampedStart) * ROW_HEIGHT);
+                                const layout = getTaskColumnLayout(t, dayTasks);
+                                const assignedUsers = getTaskAssignedUsers(t, users);
+                                const isOpenAuction = t.status === 'OPEN_AUCTION' || assignedUsers.length === 0;
+                                const hasContractor = assignedUsers.some(u => u.role === 'THIRD_PARTY');
+                                const taskProject = projects.find(p => p.id === t.projectId);
+
+                                return (
+                                  <div
+                                    key={t.id}
+                                    onClick={(e) => { e.stopPropagation(); setSelectedTask(t); }}
+                                    style={{ top: `${topPx}px`, height: `${heightPx}px`, left: layout.left, width: layout.width }}
+                                    className={`absolute p-2.5 rounded-xl border text-xs cursor-pointer shadow-lg transition-all hover:scale-[1.02] hover:z-20 flex flex-col justify-between overflow-hidden ${
+                                      isOpenAuction
+                                        ? 'bg-gradient-to-br from-amber-950 via-amber-900 to-amber-950 border-amber-400 text-amber-100 shadow-amber-900/50 animate-pulse'
+                                        : t.status === 'COMPLETED'
+                                        ? 'bg-emerald-950/90 border-emerald-600/80 text-emerald-100'
+                                        : t.isPersonal
+                                        ? 'bg-purple-950/90 border-purple-600/80 text-purple-100'
+                                        : hasContractor
+                                        ? 'bg-amber-950/90 border-amber-600/80 text-amber-100'
+                                        : 'bg-indigo-950/90 border-indigo-600/80 text-indigo-100'
+                                    }`}
+                                  >
+                                    <div>
+                                      <div className="flex items-start justify-between font-bold text-[11px] leading-tight mb-0.5">
+                                        <span className="truncate">{t.title}</span>
+                                        {isOpenAuction ? (
+                                          <span className="bg-amber-400 text-gray-950 font-black text-[9px] px-1 rounded shadow">⚡ SUBASTA</span>
+                                        ) : (
+                                          <span className="text-red-400 shrink-0 ml-1">🔒</span>
+                                        )}
+                                      </div>
+                                      {taskProject && (
+                                        <span className="inline-block bg-gray-950/90 text-purple-300 border border-purple-800/60 text-[9px] px-1 py-0.2 rounded truncate max-w-full mb-0.5">
+                                          📂 {taskProject.name}
+                                        </span>
+                                      )}
+                                      <p className="text-[10px] font-bold truncate">
+                                        {isOpenAuction
+                                          ? '⚡ ¡RECLAMAR AHORA!'
+                                          : assignedUsers.length > 1
+                                          ? `👥 ${assignedUsers.map(u => u.name.split(' ')[0]).join(', ')}`
+                                          : `👤 ${assignedUsers[0]?.name.split(' ')[0] || 'Usuario'}`}
+                                      </p>
+                                    </div>
+                                    <div className="pt-1 border-t border-gray-700/60 flex items-center justify-between text-[9px] font-mono">
+                                      <span>{start.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} - {end.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
+                                      <span className="px-1.5 py-0.2 rounded-full font-bold bg-gray-900/80">{isOpenAuction ? 'LIBRE' : t.status}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* DAY VIEW */}
+                {viewMode === 'DAY' && (
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
+                    <div className="p-4 bg-gray-950 border-b border-gray-800 flex items-center justify-between">
+                      <h3 className="font-bold text-white capitalize">{currentDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</h3>
+                    </div>
+                    <div className="max-h-[650px] overflow-y-auto divide-y divide-gray-800/60">
+                      {hours.slice(0, -1).map(hour => {
+                        const dayStr = currentDate.toDateString();
+                        const hourTasks = filteredTasks.filter(t => {
+                          const start = new Date(t.startTime);
+                          return start.toDateString() === dayStr && start.getHours() === hour;
+                        });
+
+                        return (
+                          <div key={hour} onClick={() => handleCellClick(currentDate, hour)} className="flex min-h-[80px] hover:bg-indigo-950/20 cursor-pointer p-2 border-b border-gray-800/50">
+                            <div className="w-20 font-bold text-xs text-gray-500 pt-1">{hour}:00</div>
+                            <div className="flex-1 space-y-2">
+                              {hourTasks.map(t => {
+                                const assignedUsers = getTaskAssignedUsers(t, users);
+                                const isOpenAuction = t.status === 'OPEN_AUCTION' || assignedUsers.length === 0;
+
+                                return (
+                                  <div key={t.id} onClick={(e) => { e.stopPropagation(); setSelectedTask(t); }} className={`p-3 border rounded-xl flex justify-between items-center shadow ${
+                                    isOpenAuction ? 'bg-amber-950 border-amber-500 text-amber-100' : 'bg-indigo-950 border-indigo-700 text-white'
+                                  }`}>
+                                    <div>
+                                      <h4 className="font-bold text-sm">{t.title}</h4>
+                                      <p className="text-xs text-gray-300">
+                                        {isOpenAuction
+                                          ? '⚡ SUBASTA LIBRE PARA CONTRATISTAS'
+                                          : `👥 Asignados (${assignedUsers.length}): ${assignedUsers.map(u => u.name.split(' ')[0]).join(', ')}`}
+                                      </p>
+                                    </div>
+                                    <span className="text-xs font-mono px-2 py-1 rounded bg-gray-900 font-bold">{isOpenAuction ? '⚡ RECLAMAR' : t.status}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* MONTH VIEW */}
+                {viewMode === 'MONTH' && (
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
+                    <div className="grid grid-cols-7 border-b border-gray-800 bg-gray-950 text-xs font-bold text-gray-400 text-center py-3">
+                      <span>LUN</span><span>MAR</span><span>MIÉ</span><span>JUE</span><span>VIE</span><span>SÁB</span><span>DOM</span>
+                    </div>
+                    <div className="grid grid-cols-7 divide-x divide-y divide-gray-800/60 min-h-[600px]">
+                      {monthDays.map((day, idx) => {
+                        const dayStr = day.toDateString();
+                        const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+                        const dayTasks = filteredTasks.filter(t => new Date(t.startTime).toDateString() === dayStr);
+
+                        return (
+                          <div key={idx} onClick={() => handleCellClick(day, 9)} className={`min-h-[110px] p-2 cursor-pointer hover:bg-indigo-950/20 flex flex-col justify-between ${!isCurrentMonth ? 'opacity-40' : ''}`}>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs font-bold">{day.getDate()}</span>
+                              {dayTasks.length > 0 && <span className="text-[10px] font-semibold text-gray-400">{dayTasks.length} trab.</span>}
+                            </div>
+                            <div className="space-y-1">
+                              {dayTasks.slice(0, 2).map(t => (
+                                <div key={t.id} onClick={(e) => { e.stopPropagation(); setSelectedTask(t); }} className={`p-1 text-[10px] border rounded truncate font-semibold ${t.status === 'OPEN_AUCTION' || getTaskAssignedIds(t).length === 0 ? 'bg-amber-950 border-amber-500 text-amber-200' : 'bg-indigo-950 border-indigo-800 text-indigo-200'}`}>
+                                  {t.isPersonal ? `🟣 ${t.title}` : t.title}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* AGENDA VIEW */}
+                {viewMode === 'AGENDA' && (
+                  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-xl space-y-3">
+                    <h3 className="font-bold text-white text-sm">Itinerario de Trabajos & Subastas ({filteredTasks.length})</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {filteredTasks.map(t => {
+                        const assignedUsers = getTaskAssignedUsers(t, users);
+                        const isOpenAuction = t.status === 'OPEN_AUCTION' || assignedUsers.length === 0;
+
+                        return (
+                          <div key={t.id} onClick={() => setSelectedTask(t)} className={`border hover:border-indigo-500 rounded-2xl p-4 cursor-pointer space-y-2 ${isOpenAuction ? 'bg-amber-950/80 border-amber-500' : 'bg-gray-950 border-gray-800'}`}>
+                            <div className="flex justify-between items-start">
+                              <h4 className="font-bold text-white text-sm">{t.title}</h4>
+                              <span className="text-xs bg-gray-900 px-2.5 py-0.5 rounded-full font-bold">{isOpenAuction ? '⚡ SUBASTA LIBRE' : t.status}</span>
+                            </div>
+                            <p className="text-xs text-gray-300">
+                              {isOpenAuction
+                                ? '⚡ ¡Cualquier contratista o partner puede reclamarlo!'
+                                : `👥 Asignados (${assignedUsers.length}): ${assignedUsers.map(u => u.name).join(', ')}`}
+                            </p>
+                            <p className="text-xs text-gray-500 font-mono">⏰ {new Date(t.startTime).toLocaleString('es-ES')}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </main>
+
+          {/* MODAL CREAR TAREA (CON MULTI-ASIGNACIÓN & ASIGNACIÓN PROPIA PARA EL JEFE) */}
+          {isNewTaskModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/80 backdrop-blur-sm">
+              <div className="bg-gray-900 border border-gray-800 w-full max-w-lg rounded-2xl shadow-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+                  <h3 className="font-bold text-white text-base">Agendar Tarea o Publicar Subasta</h3>
+                  <button onClick={() => { setIsParticipantsOpen(false); setIsNewTaskModalOpen(false); }} className="text-gray-400 hover:text-white">✕</button>
+                </div>
+
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const form = e.target;
+                  const isAuctionChecked = form.isAuctionOption ? form.isAuctionOption.checked : false;
+
+                  const checkedNodes = form.querySelectorAll('input[name="assignedUserIds"]:checked');
+                  let selectedUserIds = Array.from(checkedNodes).map(node => node.value);
+
+                  if (!isAuctionChecked && selectedUserIds.length === 0) {
+                    selectedUserIds = [currentUser.id];
+                  }
+
+                  const success = handleCreateTask({
+                    title: form.title.value,
+                    description: form.description.value,
+                    location: form.location.value,
+                    dateStr: form.dateStr.value,
+                    startTimeStr: form.startTimeStr.value,
+                    endTimeStr: form.endTimeStr.value,
+                    assignedToIds: selectedUserIds,
+                    isPersonal: form.isPersonal ? form.isPersonal.checked : false,
+                    isAuction: isAuctionChecked,
+                    projectId: form.projectId ? form.projectId.value : null
+                  });
+                  if (success) {
+                    setIsParticipantsOpen(false);
+                    setIsNewTaskModalOpen(false);
+                  }
+                }} className="space-y-4">
+
+                  {/* PROYECTO ASIGNADO */}
+                  <div id="project-selection-wrapper">
+                    <label className="block text-xs font-semibold text-gray-300 mb-1">📂 Asignar a Proyecto Activo</label>
+                    <select
+                      name="projectId"
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-gray-100 focus:outline-none focus:border-indigo-500 cursor-pointer font-semibold"
+                    >
+                      <option value="" className="bg-gray-900 text-gray-400">-- Sin Proyecto (General) --</option>
+                      {projects.map(p => (
+                        <option key={p.id} value={p.id} className="bg-gray-900 text-gray-100">
+                          📂 {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* ASIGNACIÓN & SELECCIÓN DE PARTICIPANTES (PESTAÑA DESPLEGABLE SUAVE) */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1.5">Asignación & Participantes del Trabajo</label>
+
+                    {currentUser.role === 'BOSS' && (
+                      <div id="auction-option-wrapper" className="mb-2 p-2.5 bg-amber-950/40 border border-amber-600/40 rounded-xl">
+                        <label className="flex items-center space-x-2 text-xs font-semibold text-amber-300 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="isAuctionOption"
+                            id="isAuctionOption"
+                            onChange={(e) => {
+                              const isAuction = e.target.checked;
+                              const container = document.getElementById('participants-details-wrapper');
+                              if (container) {
+                                container.style.opacity = isAuction ? '0.3' : '1';
+                                container.style.pointerEvents = isAuction ? 'none' : 'auto';
+                              }
+                            }}
+                            className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 bg-gray-950 border-amber-700 cursor-pointer"
+                          />
+                          <span>⚡ Publicar como SUBASTA ABIERTA para Contratistas (Sin Asignar)</span>
+                        </label>
+                      </div>
+                    )}
+
+                    <div id="participants-details-wrapper" className="space-y-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setIsParticipantsOpen(prev => !prev)}
+                        className="w-full px-3.5 py-2.5 text-xs font-semibold text-gray-200 bg-gray-950 border border-gray-800 hover:bg-gray-900/80 rounded-xl flex items-center justify-between select-none transition-all cursor-pointer"
+                      >
+                        <span className="flex items-center space-x-2">
+                          <span>👥 Seleccionar Participantes Asignados</span>
+                        </span>
+                        <span className="text-gray-400 font-bold text-[10px]">{isParticipantsOpen ? '▲' : '▼'}</span>
+                      </button>
+
+                      {isParticipantsOpen && (
+                        <div className="p-2.5 space-y-1.5 border border-gray-800/80 rounded-xl max-h-48 overflow-y-auto bg-gray-950/90 shadow-xl transition-all">
+                          {users.map(u => {
+                            const isSelf = currentUser.id === u.id;
+                            const isEmployeeOrBoss = u.role === 'EMPLOYEE' || u.role === 'BOSS';
+                            const isCurrentThirdParty = currentUser.role === 'THIRD_PARTY';
+                            const isDisabled = isCurrentThirdParty && isEmployeeOrBoss;
+
+                            return (
+                              <label key={u.id} className={`flex items-center justify-between p-2 rounded-lg border text-xs ${
+                                isDisabled
+                                  ? 'bg-gray-950/40 border-gray-900 text-gray-600 cursor-not-allowed opacity-50'
+                                  : 'bg-gray-900/80 hover:bg-gray-800 cursor-pointer border-gray-800'
+                              }`}>
+                                <div className="flex items-center space-x-2">
+                                  <input
+                                    type="checkbox"
+                                    name="assignedUserIds"
+                                    value={u.id}
+                                    disabled={isDisabled}
+                                    defaultChecked={isSelf && !isDisabled}
+                                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-gray-950 border-gray-700 cursor-pointer disabled:cursor-not-allowed"
+                                  />
+                                  <span className={`font-semibold ${isDisabled ? 'text-gray-600' : 'text-gray-200'}`}>
+                                    {u.role === 'BOSS' ? '👑' : u.role === 'THIRD_PARTY' ? '🔧' : '👷'} {u.name}
+                                  </span>
+                                </div>
+                                <span className={`text-[10px] px-2 py-0.5 rounded border ${
+                                  isDisabled ? 'bg-gray-950 text-red-400/70 border-red-950' : 'bg-gray-950 text-gray-400 border-gray-800'
+                                }`}>
+                                  {isDisabled ? '🚫 Solo Personal Interno' : u.role === 'BOSS' ? 'Jefe / Admin' : u.role === 'THIRD_PARTY' ? 'Contratista 3ero' : 'Empleado'}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1">Título del Trabajo</label>
+                    <input name="title" required placeholder="Ej. Reunión de Proyecto o Trabajo Conjunto" className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-sm text-gray-100" />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-300 mb-1">Fecha</label>
+                      <input name="dateStr" type="date" required defaultValue={newTaskDefaults.dateStr || new Date().toISOString().split('T')[0]} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-2 py-1.5 text-xs text-gray-100" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-300 mb-1">Hora Inicio</label>
+                      <input name="startTimeStr" type="time" required defaultValue={newTaskDefaults.startTimeStr || '09:00'} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-2 py-1.5 text-xs text-gray-100" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-300 mb-1">Hora Fin</label>
+                      <input name="endTimeStr" type="time" required defaultValue={newTaskDefaults.endTimeStr || '11:00'} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-2 py-1.5 text-xs text-gray-100" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1">Ubicación (Opcional)</label>
+                    <input name="location" placeholder="Planta 2 - Edificio Central" className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-sm text-gray-100" />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1">Detalles / Indicaciones</label>
+                    <textarea name="description" rows="2" placeholder="Instrucciones para los participantes..." className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-sm text-gray-100" />
+                  </div>
+
+                  <div className="flex items-center space-x-2.5 bg-purple-950/40 border border-purple-800/60 p-3 rounded-xl">
+                    <input
+                      type="checkbox"
+                      id="isPersonal"
+                      name="isPersonal"
+                      onChange={(e) => {
+                        const isPersonalChecked = e.target.checked;
+                        const participantsWrapper = document.getElementById('participants-details-wrapper');
+                        const auctionWrapper = document.getElementById('auction-option-wrapper');
+                        const projectWrapper = document.getElementById('project-selection-wrapper');
+                        if (participantsWrapper) {
+                          participantsWrapper.style.opacity = isPersonalChecked ? '0.3' : '1';
+                          participantsWrapper.style.pointerEvents = isPersonalChecked ? 'none' : 'auto';
+                        }
+                        if (auctionWrapper) {
+                          auctionWrapper.style.opacity = isPersonalChecked ? '0.3' : '1';
+                          auctionWrapper.style.pointerEvents = isPersonalChecked ? 'none' : 'auto';
+                        }
+                        if (projectWrapper) {
+                          projectWrapper.style.opacity = isPersonalChecked ? '0.3' : '1';
+                          projectWrapper.style.pointerEvents = isPersonalChecked ? 'none' : 'auto';
+                        }
+                      }}
+                      className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-gray-950 border-purple-700 cursor-pointer"
+                    />
+                    <label htmlFor="isPersonal" className="text-xs font-semibold text-purple-200 cursor-pointer select-none flex items-center justify-between w-full">
+                      <span>🟣 Marcar como Asunto personal</span>
+                      <span className="text-[10px] text-purple-300/70 font-normal italic">(Privado sólo para ti)</span>
+                    </label>
+                  </div>
+
+                  <div className="flex justify-end space-x-2 pt-2">
+                    <button type="button" onClick={() => { setIsParticipantsOpen(false); setIsNewTaskModalOpen(false); }} className="px-4 py-2 bg-gray-800 text-gray-300 text-xs font-semibold rounded-xl">Cancelar</button>
+                    <button type="submit" className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl shadow-lg">Lanzar y Reservar Horario</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL DETALLE TAREA (CON BOTÓN DE RECLAMAR SUBASTA PARA CONTRATISTAS) */}
+          {selectedTask && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/80 backdrop-blur-sm">
+              <div className="bg-gray-900 border border-gray-800 w-full max-w-lg rounded-2xl shadow-2xl p-5 space-y-4">
+                <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+                  <h3 className="font-bold text-white text-base">{selectedTask.title}</h3>
+                  <button onClick={() => setSelectedTask(null)} className="text-gray-400 hover:text-white">✕</button>
+                </div>
+
+                <div className="space-y-3 text-xs text-gray-300">
+                  {/* BOTÓN RECLAMAR SI ES SUBASTA LIBRE */}
+                  {(selectedTask.status === 'OPEN_AUCTION' || getTaskAssignedIds(selectedTask).length === 0) ? (
+                    <div className="p-4 bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 border border-amber-500/80 rounded-2xl text-center space-y-3 shadow-xl">
+                      <div className="text-amber-300 font-extrabold text-sm flex items-center justify-center gap-1">
+                        <span>⚡ SUBASTA DE TRABAJO ABIERTA</span>
+                      </div>
+
+                      {currentUser.role === 'THIRD_PARTY' ? (
+                        <>
+                          <p className="text-xs text-amber-200/90">
+                            Trabajo libre en bolsa pública. Como Contratista/Partner 3ero, el primero que haga clic se lo queda.
+                          </p>
+                          <button
+                            onClick={() => handleClaimAuctionTask(selectedTask.id)}
+                            className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-gray-950 font-black text-sm rounded-xl shadow-lg shadow-amber-500/30 transition-all flex items-center justify-center gap-2"
+                          >
+                            <span>✋ ¡RECLAMAR Y ASIGNARME ESTE TRABAJO!</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-xs text-amber-300/90">
+                            ⚠️ <strong>Subasta exclusiva para Contratistas 3eros y Partners</strong>. Tu rol actual (<strong>{currentUser.role === 'BOSS' ? '👑 Jefe / Admin' : '👷 Empleado Técnico'}</strong>) no puede reclamar esta subasta.
+                          </p>
+                          <div className="p-2.5 bg-amber-950/60 border border-amber-700/50 rounded-xl text-[11px] text-amber-200 text-left space-y-1">
+                            <p className="font-bold">💡 ¿Cómo probar la subasta?</p>
+                            <p className="text-gray-300">Cambia de rol en la barra superior a <strong>🔧 Roberto (Contratista 3ero)</strong> o <strong>🔧 Mario (Partner)</strong> para reclamar este trabajo.</p>
+                          </div>
+                          <button
+                            onClick={() => handleClaimAuctionTask(selectedTask.id)}
+                            className="w-full py-2 bg-gray-950 border border-gray-800 text-gray-400 font-semibold text-xs rounded-xl hover:border-amber-600/50 transition-all flex items-center justify-center gap-1.5"
+                          >
+                            <span>🔒 Subasta Solo para 3eros (Intentar Reclamar)</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-2">
+                      <p className="font-bold text-white flex items-center justify-between text-xs">
+                        <span>👥 Participantes Asignados ({getTaskAssignedUsers(selectedTask, users).length}):</span>
+                      </p>
+                      <div className="space-y-1.5">
+                        {getTaskAssignedUsers(selectedTask, users).map(u => {
+                          const cleanPhone = (u.phone || '').replace(/[^0-9]/g, '');
+                          const taskDate = new Date(selectedTask.startTime).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+                          const startH = new Date(selectedTask.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                          const endH = new Date(selectedTask.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                          const msgText = `NOTIFICACIÓN DE TRABAJO\nHola ${u.name}, recordatorio del trabajo:\nTrabajo: ${selectedTask.title}\nFecha: ${taskDate}\nHorario: ${startH} - ${endH}\n${selectedTask.location ? `Ubicación: ${selectedTask.location}\n` : ''}${selectedTask.description ? `Detalles: ${selectedTask.description}\n` : ''}`;
+                          const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgText)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(msgText)}`;
+
+                          return (
+                            <div key={u.id} className="flex justify-between items-center bg-gray-900 border border-gray-800 p-2.5 rounded-xl text-xs gap-2">
+                              <div>
+                                <p className="font-bold text-gray-200">
+                                  {u.role === 'BOSS' ? '👑' : u.role === 'THIRD_PARTY' ? '🔧' : '👷'} {u.name}
+                                </p>
+                                <p className="text-[10px] text-gray-400">📞 {u.phone}</p>
+                              </div>
+                              <a
+                                href={waUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2.5 py-1 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/80 rounded-lg font-bold text-[11px] flex items-center gap-1 transition-all decoration-none"
+                              >
+                                <span>📱 WhatsApp</span>
+                                <span>➔</span>
+                              </a>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="font-mono text-indigo-400 text-xs pt-1">⏰ {new Date(selectedTask.startTime).toLocaleString('es-ES')} - {new Date(selectedTask.endTime).toLocaleTimeString('es-ES')}</p>
+                    </div>
+                  )}
+
+                  {/* BOTÓN UNIRSE / ACOMPAÑAR TRABAJO PARA EMPLEADOS */}
+                  {(() => {
+                    if (currentUser.role !== 'EMPLOYEE' || selectedTask.status === 'CANCELLED' || selectedTask.status === 'OPEN_AUCTION') {
+                      return null;
+                    }
+                    const assignedIds = getTaskAssignedIds(selectedTask);
+                    const assignedUsers = getTaskAssignedUsers(selectedTask, users);
+                    const hasContractor = assignedUsers.some(u => u.role === 'THIRD_PARTY');
+                    const isAlreadyJoined = assignedIds.includes(currentUser.id);
+
+                    if (hasContractor && !isAlreadyJoined) {
+                      return (
+                        <div className="p-3 bg-indigo-950/70 border border-indigo-700/80 rounded-xl space-y-2">
+                          <p className="text-xs text-indigo-200 font-semibold">
+                            🤝 Trabajo asignado a Contratista 3ero. Como empleado de la empresa, puedes unirte para realizar la labor juntos o acompañarlo.
+                          </p>
+                          <button
+                            onClick={() => handleJoinTask(selectedTask.id)}
+                            className="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-1.5"
+                          >
+                            <span>➕ Unirme a este Trabajo (Acompañar al Contratista)</span>
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    if (isAlreadyJoined && assignedIds.length > 1) {
+                      return (
+                        <button
+                          onClick={() => handleLeaveTask(selectedTask.id)}
+                          className="w-full py-1.5 bg-gray-900 border border-gray-700 text-gray-300 hover:text-white font-semibold text-xs rounded-xl transition-all"
+                        >
+                          🚶 Retirarme de este Trabajo
+                        </button>
+                      );
+                    }
+
+                    return null;
+                  })()}
+
+                  {(() => {
+                    const taskProject = projects.find(p => p.id === selectedTask.projectId);
+                    if (!taskProject) return null;
+                    return (
+                      <div className="p-3 bg-purple-950/60 border border-purple-800/80 rounded-xl text-xs flex items-center justify-between">
+                        <span className="font-bold text-purple-300">📂 PROYECTO ASIGNADO:</span>
+                        <span className="font-extrabold text-white bg-purple-900/80 px-2.5 py-1 rounded-lg border border-purple-700">
+                          {taskProject.name}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
+                  {selectedTask.isPersonal && (
+                    <div className="p-2 bg-purple-950/60 border border-purple-800/80 rounded-xl text-xs font-semibold text-purple-200 flex items-center gap-1.5">
+                      <span>🟣 ASUNTO PERSONAL</span>
+                    </div>
+                  )}
+
+                  {selectedTask.location && <p>📍 Ubicación: <strong className="text-white">{selectedTask.location}</strong></p>}
+                  {selectedTask.description && <p>📝 Detalles: <span className="text-gray-400">{selectedTask.description}</span></p>}
+
+                  {selectedTask.assignedToId && (
+                    <div className="pt-2 border-t border-gray-800 space-y-2">
+                      <p className="font-semibold text-gray-400">Actualizar Estado:</p>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleUpdateTaskStatus(selectedTask.id, 'IN_PROGRESS')} className="px-3 py-1.5 bg-blue-950 border border-blue-800 text-blue-200 rounded-xl text-xs font-semibold">En Proceso</button>
+                        <button onClick={() => handleUpdateTaskStatus(selectedTask.id, 'COMPLETED')} className="px-3 py-1.5 bg-emerald-950 border border-emerald-800 text-emerald-200 rounded-xl text-xs font-semibold">Completado</button>
+                        <button onClick={() => handleUpdateTaskStatus(selectedTask.id, 'CANCELLED')} className="px-3 py-1.5 bg-gray-800 text-gray-300 rounded-xl text-xs font-semibold">Liberar Horario</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-between items-center pt-3 border-t border-gray-800">
+                  {(() => {
+                    const assignedUser = users.find(u => u.id === selectedTask.assignedToId);
+                    const isContractorJob = assignedUser?.role === 'THIRD_PARTY';
+                    const isEmployee = currentUser.role === 'EMPLOYEE';
+
+                    if (isEmployee && isContractorJob) {
+                      return (
+                        <span className="text-[11px] font-semibold text-red-400/90 bg-red-950/40 border border-red-900/50 px-2.5 py-1 rounded-xl flex items-center gap-1">
+                          🔒 Empleados no pueden eliminar trabajos de contratistas
+                        </span>
+                      );
+                    }
+
+                    return (
+                      <button onClick={() => setTaskToDelete(selectedTask)} className="px-3 py-1.5 bg-red-950/80 hover:bg-red-900 border border-red-800 text-red-300 rounded-xl text-xs font-semibold transition-all">
+                        🗑️ Eliminar Trabajo
+                      </button>
+                    );
+                  })()}
+                  <button onClick={() => setSelectedTask(null)} className="px-4 py-1.5 bg-gray-800 text-gray-300 text-xs font-semibold rounded-xl">Cerrar</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL CONFIRMAR ELIMINACIÓN */}
+          {taskToDelete && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/80 backdrop-blur-sm">
+              <div className="bg-gray-900 border border-gray-800 w-full max-w-md rounded-2xl p-6 text-center space-y-4">
+                <div className="w-12 h-12 bg-red-950 border border-red-800 text-red-400 rounded-2xl flex items-center justify-center mx-auto text-xl font-bold">⚠️</div>
+                <h3 className="font-extrabold text-white text-lg">¿Eliminar este trabajo?</h3>
+                <p className="text-xs text-gray-400">¿Estás seguro de eliminar <strong className="text-gray-200">{taskToDelete.title}</strong>? El horario agendado se liberará automáticamente.</p>
+                <div className="flex justify-center space-x-3 pt-2">
+                  <button onClick={() => setTaskToDelete(null)} className="px-4 py-2 bg-gray-800 text-gray-300 text-xs font-semibold rounded-xl">Cancelar</button>
+                  <button onClick={() => handleDeleteTask(taskToDelete.id)} className="px-4 py-2 bg-red-600 text-white text-xs font-semibold rounded-xl shadow-lg">Sí, Eliminar Trabajo</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL DE ALERTA Y VICTORIA DE SUBASTA PERSONALIZADO (DISEÑO APP) */}
+          {auctionAlertModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/85 backdrop-blur-md">
+              <div className={`bg-gray-900 border ${
+                auctionAlertModal.type === 'SUCCESS' ? 'border-amber-500/70 shadow-amber-500/20' : 'border-red-800/60 shadow-red-950/40'
+              } w-full max-w-md rounded-2xl p-6 shadow-2xl text-center space-y-4`}>
+
+                {auctionAlertModal.type === 'SUCCESS' ? (
+                  <>
+                    <div className="w-16 h-16 bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 text-gray-950 rounded-2xl flex items-center justify-center mx-auto text-3xl font-black shadow-xl shadow-amber-500/30 animate-bounce">
+                      🏆
+                    </div>
+                    <div>
+                      <h3 className="font-black text-amber-300 text-xl tracking-tight">{auctionAlertModal.title}</h3>
+                      <p className="text-xs text-amber-100/90 mt-1">{auctionAlertModal.message}</p>
+                    </div>
+
+                    <div className="bg-gray-950/80 border border-amber-500/30 rounded-xl p-3.5 text-left text-xs space-y-1.5 font-sans">
+                      <p className="font-extrabold text-white text-sm">📌 {auctionAlertModal.taskTitle}</p>
+                      <p className="text-amber-200 font-mono">📅 {auctionAlertModal.dateStr} | ⏰ {auctionAlertModal.timeStr}</p>
+                      {auctionAlertModal.location && <p className="text-gray-300">📍 {auctionAlertModal.location}</p>}
+                      <div className="pt-2 border-t border-gray-800 flex items-center justify-between text-[11px] text-emerald-400 font-semibold">
+                        <span>💬 Notificación WhatsApp registrada</span>
+                        <span className="bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">✅ Horario Bloqueado</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setAuctionAlertModal(null)}
+                      className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-gray-950 font-black text-sm rounded-xl shadow-lg shadow-amber-500/20 transition-all"
+                    >
+                      ¡Entendido y Listo! ⚡
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-14 h-14 bg-red-950/90 border border-red-800/80 text-red-400 rounded-2xl flex items-center justify-center mx-auto text-2xl font-bold">
+                      🚫
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-white text-base">{auctionAlertModal.title}</h3>
+                      <p className="text-xs text-gray-300 mt-2 leading-relaxed">{auctionAlertModal.message}</p>
+                    </div>
+                    <button
+                      onClick={() => setAuctionAlertModal(null)}
+                      className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold text-xs rounded-xl transition-all"
+                    >
+                      Cerrar
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* MODAL NOTIFICACIONES DE WHATSAPP DIRECTO (CUENTA DEL USUARIO) */}
+          {isWhatsAppModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/80 backdrop-blur-sm">
+              <div className="bg-gray-900 border border-emerald-900/60 w-full max-w-2xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+                <div className="bg-emerald-950 border-b border-emerald-800/60 p-4 flex justify-between items-center">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-900/60 border border-emerald-700 flex items-center justify-center text-xl text-emerald-300 shadow-lg">
+                      💬
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white text-base">Notificaciones de WhatsApp Directo</h3>
+                      <p className="text-xs text-emerald-300/80">Mensajes listos para enviar directamente desde tu cuenta de WhatsApp</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsWhatsAppModalOpen(false)} className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 cursor-pointer">✕</button>
+                </div>
+
+                <div className="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-950/60">
+                  {whatsAppLogs.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500 text-xs">
+                      <span className="text-3xl block mb-2">💬</span>
+                      No hay mensajes generados recientemente. Al agendar o modificar tareas se redactará automáticamente el texto de WhatsApp.
+                    </div>
+                  ) : (
+                    whatsAppLogs.map(log => {
+                      const cleanPhone = (log.recipientPhone || '').replace(/[^0-9]/g, '');
+                      const waUrl = cleanPhone
+                        ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(log.message)}`
+                        : `https://api.whatsapp.com/send?text=${encodeURIComponent(log.message)}`;
+
+                      return (
+                        <div key={log.id} className="bg-gray-900 border border-emerald-950 hover:border-emerald-800/80 rounded-2xl p-4 space-y-3 shadow-lg transition-all">
+                          <div className="flex flex-wrap justify-between items-center text-xs border-b border-gray-800 pb-2 gap-2">
+                            <span className="font-extrabold text-emerald-400 flex items-center gap-1.5">
+                              <span>👤 Destinatario:</span>
+                              <strong className="text-white">{log.recipientName}</strong>
+                              <span className="text-gray-400 font-mono">({log.recipientPhone})</span>
+                            </span>
+                            <span className="text-[11px] text-gray-500 font-medium">{new Date(log.sentAt).toLocaleString('es-ES')}</span>
+                          </div>
+
+                          <div className="bg-emerald-950/40 border border-emerald-900/50 rounded-xl p-3 text-xs text-emerald-100 whitespace-pre-wrap font-sans leading-relaxed">
+                            {log.message}
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(log.message);
+                                setAppAlert({
+                                  type: 'SUCCESS',
+                                  title: '📋 Mensaje Copiado',
+                                  message: 'El texto de la notificación se ha copiado al portapapeles.'
+                                });
+                              }}
+                              className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold text-xs rounded-xl transition-all cursor-pointer"
+                            >
+                              📋 Copiar Texto
+                            </button>
+                            <a
+                              href={waUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/30 flex items-center space-x-1.5 transition-all cursor-pointer decoration-none"
+                            >
+                              <span>📱 Abrir en mi WhatsApp y Enviar</span>
+                              <span>➔</span>
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="p-3.5 bg-gray-900 border-t border-gray-800 text-center text-xs text-gray-400">
+                  📱 Los mensajes se abrirán directamente en la aplicación de WhatsApp (Web o Móvil) conectada a tu cuenta personal.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL REGISTRO DE ACTIVIDADES COMPLETADAS */}
+          {isCompletedLogsModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/80 backdrop-blur-sm">
+              <div className="bg-gray-900 border border-gray-800 w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+                <div className="bg-emerald-950 border-b border-emerald-800/60 p-4 flex justify-between items-center">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xl">📋</span>
+                    <div>
+                      <h3 className="font-bold text-white text-base">Registro & Bitácora de Actividades Completadas</h3>
+                      <p className="text-xs text-emerald-300/80">Historial completo de trabajos finalizados y ahorro de tiempo en agenda</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsCompletedLogsModalOpen(false)} className="text-gray-400 hover:text-white">✕</button>
+                </div>
+
+                <div className="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-950/50">
+                  {completedTasks.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500 text-xs">
+                      <span className="text-3xl block mb-2">📥</span>
+                      No hay actividades completadas registradas aún.
+                    </div>
+                  ) : (
+                    completedTasks.map(t => {
+                      const assignedUsers = getTaskAssignedUsers(t, users);
+                      const startTimeStr = new Date(t.startTime).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+                      const endTimeStr = new Date(t.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                      const origEndStr = t.originalEndTime ? new Date(t.originalEndTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : null;
+
+                      return (
+                        <div key={t.id} className="bg-gray-900 border border-emerald-900/40 rounded-xl p-4 space-y-2.5 shadow-lg">
+                          <div className="flex flex-wrap justify-between items-start gap-2 border-b border-gray-800 pb-2">
+                            <div>
+                              <h4 className="font-extrabold text-white text-sm flex items-center gap-2">
+                                <span>{t.title}</span>
+                                {origEndStr && (
+                                  <span className="bg-emerald-950 text-emerald-300 border border-emerald-700/60 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    ⚡ Finalizado Antes (Horario Liberado)
+                                  </span>
+                                )}
+                              </h4>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                {t.description || 'Sin descripción adicional'}
+                              </p>
+                            </div>
+                            <span className="bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-1 rounded-full text-xs font-bold font-mono">
+                              ✅ COMPLETADO
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                            <div className="bg-gray-950 p-2.5 rounded-lg border border-gray-800 space-y-1">
+                              <p className="font-semibold text-gray-300">👥 Participantes:</p>
+                              <p className="text-gray-400">
+                                {assignedUsers.map(u => `${u.name} (${u.role === 'BOSS' ? 'Jefe' : u.role === 'THIRD_PARTY' ? 'Contratista' : 'Empleado'})`).join(', ') || 'Sin asignar'}
+                              </p>
+                            </div>
+
+                            <div className="bg-gray-950 p-2.5 rounded-lg border border-gray-800 space-y-1 font-mono text-[11px]">
+                              <p className="text-gray-300">⏰ Inicio: <span className="text-white">{startTimeStr}</span></p>
+                              <p className="text-gray-300">
+                                ⏰ Finalizado: <span className="text-emerald-400 font-bold">{endTimeStr}</span>
+                                {origEndStr && <span className="text-gray-500 line-through ml-1.5">(Prog. {origEndStr})</span>}
+                              </p>
+                              {t.completedBy && <p className="text-gray-400">👤 Registrado por: <span className="text-indigo-300">{t.completedBy}</span></p>}
+                            </div>
+                          </div>
+
+                          {t.location && (
+                            <p className="text-xs text-gray-400">📍 Ubicación: <span className="text-gray-200 font-semibold">{t.location}</span></p>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="p-3 bg-gray-900 border-t border-gray-800 flex justify-between items-center text-xs">
+                  <span className="text-gray-400">Total de Trabajos Completados: <strong>{completedTasks.length}</strong></span>
+                  <button onClick={() => setIsCompletedLogsModalOpen(false)} className="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold rounded-xl">
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* MODAL DE CARPETAS DE PROYECTOS & CONTROL DE TRABAJOS REALIZADOS */}
+          {isProjectsModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/80 backdrop-blur-sm">
+              <div className="bg-gray-900 border border-purple-900/60 w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+                
+                {/* Header del Modal */}
+                <div className="bg-gradient-to-r from-purple-950 via-gray-900 to-gray-950 border-b border-purple-800/60 p-4 flex justify-between items-center">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-xl bg-purple-900/60 border border-purple-700 flex items-center justify-center text-xl text-purple-300 shadow-lg">
+                      📂
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white text-base tracking-tight">Carpetas de Proyectos & Control de Trabajos</h3>
+                      <p className="text-xs text-purple-300/80">Monitorea los trabajos completados, avances y asignaciones por proyecto</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsProjectsModalOpen(false)} className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-gray-800 cursor-pointer">✕</button>
+                </div>
+
+                <div className="p-4 overflow-y-auto flex-1 space-y-5 bg-gray-950/60">
+                  {/* Formulario Crear Nuevo Proyecto */}
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const form = e.target;
+                      const name = form.projectName.value.trim();
+
+                      if (!name) return;
+
+                      const newPrj = {
+                        id: 'prj-' + Date.now(),
+                        name: name,
+                        color: 'indigo'
+                      };
+
+                      setProjects(prev => [...prev, newPrj]);
+                      form.reset();
+                    }}
+                    className="bg-gray-900/90 border border-purple-900/40 rounded-2xl p-4 space-y-3 shadow-md"
+                  >
+                    <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
+                      <span>+ Registrar Nuevo Proyecto</span>
+                    </h4>
+                    <div className="flex gap-2">
+                      <input
+                        name="projectName"
+                        required
+                        placeholder="Nombre Completo del Proyecto (Ej. Remodelación Sede Central)"
+                        className="flex-1 bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs text-gray-100 focus:border-purple-600 focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-purple-600/30 transition-all cursor-pointer shrink-0"
+                      >
+                        + Crear Proyecto
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* SECCIÓN DE CARPETAS POR PROYECTO */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-extrabold text-gray-300 text-xs uppercase tracking-wider flex items-center space-x-1.5">
+                        <span>📁 Carpetas de Proyectos Registrados ({projects.length})</span>
+                      </h4>
+                      <span className="text-[11px] text-purple-300/90 font-medium">Haz clic en una carpeta para explorarla</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {projects.map(p => {
+                        const projectTasks = tasks.filter(t => t.projectId === p.id && t.status !== 'CANCELLED');
+                        const completedTasks = projectTasks.filter(t => t.status === 'COMPLETED');
+                        const pendingTasks = projectTasks.filter(t => t.status !== 'COMPLETED');
+                        const isOpen = openFolderId === p.id;
+                        const progressPercent = projectTasks.length > 0 ? Math.round((completedTasks.length / projectTasks.length) * 100) : 0;
+
+                        return (
+                          <div key={p.id} className="bg-gray-900/90 border border-gray-800 hover:border-purple-800/80 rounded-2xl overflow-hidden shadow-lg transition-all">
+                            {/* Pestaña / Encabezado de la Carpeta */}
+                            <div
+                              onClick={() => setOpenFolderId(isOpen ? null : p.id)}
+                              className="p-3.5 bg-gradient-to-r from-gray-900 via-gray-900 to-purple-950/30 hover:to-purple-950/60 cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 select-none"
+                            >
+                              <div className="flex items-center space-x-3">
+                                <div className={`w-9 h-9 rounded-xl border flex items-center justify-center text-lg shrink-0 ${
+                                  isOpen ? 'bg-purple-950 border-purple-700 text-purple-300 shadow-md' : 'bg-gray-950 border-gray-800 text-purple-400'
+                                }`}>
+                                  {isOpen ? '📂' : '📁'}
+                                </div>
+                                <div>
+                                  <h5 className="font-extrabold text-white text-sm tracking-tight">{p.name}</h5>
+                                  <div className="flex items-center space-x-2 mt-0.5 text-[11px] text-gray-400">
+                                    <span className="text-emerald-400 font-bold">✅ {completedTasks.length} completadas</span>
+                                    <span>•</span>
+                                    <span className="text-amber-400 font-bold">⏳ {pendingTasks.length} pendientes</span>
+                                    <span>•</span>
+                                    <span>📋 {projectTasks.length} total</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center space-x-4 self-end sm:self-auto">
+                                {/* Barra Mini de Progreso */}
+                                <div className="w-28 space-y-1">
+                                  <div className="flex justify-between text-[10px] font-bold text-gray-400">
+                                    <span>Avance</span>
+                                    <span className="text-emerald-400 font-extrabold">{progressPercent}%</span>
+                                  </div>
+                                  <div className="w-full h-1.5 bg-gray-950 rounded-full overflow-hidden border border-gray-800">
+                                    <div className="h-full bg-gradient-to-r from-emerald-600 to-teal-400 transition-all duration-500" style={{ width: `${progressPercent}%` }}></div>
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                                    isOpen
+                                      ? 'bg-purple-950 border-purple-700 text-purple-200'
+                                      : 'bg-gray-950 hover:bg-gray-800 border-gray-800 text-gray-300'
+                                  }`}
+                                >
+                                  {isOpen ? 'Cerrar Carpeta 📁' : 'Abrir Carpeta 📂'}
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* CONTENIDO DENTRO DE LA CARPETA ABIERTA */}
+                            {isOpen && (
+                              <div className="p-4 bg-gray-950/90 space-y-3.5 border-t border-purple-950/60">
+                                {/* Barra de Filtro de la Carpeta & Acciones */}
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-gray-800/80 text-xs">
+                                  <div className="flex items-center space-x-1.5">
+                                    <span className="text-gray-400 font-semibold text-[11px] mr-1">Filtrar en esta carpeta:</span>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setFolderTaskTab('ALL'); }}
+                                      className={`px-2.5 py-1 rounded-lg font-bold text-[11px] cursor-pointer ${
+                                        folderTaskTab === 'ALL' ? 'bg-purple-600 text-white shadow' : 'bg-gray-900 text-gray-400 hover:text-white'
+                                      }`}
+                                    >
+                                      Todas ({projectTasks.length})
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setFolderTaskTab('COMPLETED'); }}
+                                      className={`px-2.5 py-1 rounded-lg font-bold text-[11px] cursor-pointer ${
+                                        folderTaskTab === 'COMPLETED' ? 'bg-emerald-600 text-white shadow' : 'bg-gray-900 text-gray-400 hover:text-white'
+                                      }`}
+                                    >
+                                      ✅ Realizadas ({completedTasks.length})
+                                    </button>
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setFolderTaskTab('PENDING'); }}
+                                      className={`px-2.5 py-1 rounded-lg font-bold text-[11px] cursor-pointer ${
+                                        folderTaskTab === 'PENDING' ? 'bg-amber-600 text-white shadow' : 'bg-gray-900 text-gray-400 hover:text-white'
+                                      }`}
+                                    >
+                                      ⏳ En Progreso ({pendingTasks.length})
+                                    </button>
+                                  </div>
+
+                                  <button
+                                    onClick={() => {
+                                      setSelectedProjectFilter(p.id);
+                                      setIsProjectsModalOpen(false);
+                                    }}
+                                    className="px-3 py-1 bg-indigo-950 hover:bg-indigo-900 text-indigo-200 border border-indigo-700/60 font-bold text-xs rounded-xl flex items-center space-x-1 cursor-pointer"
+                                  >
+                                    <span>🔍 Filtrar en Calendario</span>
+                                  </button>
+                                </div>
+
+                                {/* LISTADO DE TAREAS EN LA CARPETA */}
+                                {(() => {
+                                  const displayedTasks = folderTaskTab === 'COMPLETED'
+                                    ? completedTasks
+                                    : (folderTaskTab === 'PENDING' ? pendingTasks : projectTasks);
+
+                                  if (displayedTasks.length === 0) {
+                                    return (
+                                      <div className="p-6 text-center text-gray-500 bg-gray-900/40 rounded-xl border border-gray-800/80 text-xs">
+                                        📭 No hay tareas {folderTaskTab === 'COMPLETED' ? 'completadas' : (folderTaskTab === 'PENDING' ? 'pendientes' : '')} en esta carpeta de proyecto.
+                                      </div>
+                                    );
+                                  }
+
+                                  return (
+                                    <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                                      {displayedTasks.map(task => {
+                                        const assignedUsers = getTaskAssignedUsers(task, users);
+                                        const isDone = task.status === 'COMPLETED';
+
+                                        return (
+                                          <div
+                                            key={task.id}
+                                            className={`p-3 rounded-xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-all ${
+                                              isDone
+                                                ? 'bg-emerald-950/20 border-emerald-900/50 text-emerald-100 shadow-sm'
+                                                : 'bg-gray-900 border-gray-800 text-gray-200'
+                                            }`}
+                                          >
+                                            <div className="space-y-1 flex-1">
+                                              <div className="flex items-center space-x-2">
+                                                <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                                                  isDone
+                                                    ? 'bg-emerald-950 text-emerald-300 border border-emerald-700/80'
+                                                    : (task.status === 'IN_PROGRESS'
+                                                      ? 'bg-blue-950 text-blue-300 border border-blue-700/80'
+                                                      : 'bg-amber-950 text-amber-300 border border-amber-700/80')
+                                                }`}>
+                                                  {isDone ? '✅ REALIZADA' : (task.status === 'IN_PROGRESS' ? '🔄 EN PROGRESO' : '⏳ AGENDADA')}
+                                                </span>
+                                                <h6 className="font-extrabold text-white text-xs tracking-tight">{task.title}</h6>
+                                              </div>
+
+                                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-400 mt-1">
+                                                <span>⏰ {new Date(task.startTime).toLocaleDateString('es-ES')} ({new Date(task.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} - {new Date(task.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })})</span>
+                                                {task.location && <span>📍 {task.location}</span>}
+                                                <span>👤 Realizado/Asignado: <strong className="text-gray-200 font-semibold">{assignedUsers.map(u => u.name).join(', ') || 'Sin Asignar'}</strong></span>
+                                              </div>
+
+                                              {task.description && (
+                                                <p className="text-[11px] text-gray-300 bg-gray-950/70 p-2 rounded-lg border border-gray-800/80 mt-1.5 italic">
+                                                  "{task.description}"
+                                                </p>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer del Modal */}
+                <div className="p-3.5 bg-gray-900 border-t border-gray-800 flex justify-between items-center text-xs">
+                  <span className="text-gray-400">Total Proyectos: <strong className="text-white">{projects.length}</strong></span>
+                  <button onClick={() => setIsProjectsModalOpen(false)} className="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold rounded-xl cursor-pointer">
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal de Gestión de Usuarios (Sólo Jefe) */}
+          <UserManagementModal
+            isOpen={isUserMgmtModalOpen}
+            onClose={() => setIsUserMgmtModalOpen(false)}
+            users={users}
+            setUsers={setUsers}
+            setAppAlert={setAppAlert}
+          />
+
+          {/* MODAL EMERGENTE DE CONFIRMACIÓN DE ENVÍO POR WHATSAPP */}
+          {whatsAppPromptQueue.length > 0 && (() => {
+            const currentPrompt = whatsAppPromptQueue[0];
+            const remainingCount = whatsAppPromptQueue.length - 1;
+
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/85 backdrop-blur-md">
+                <div className="bg-gray-900 border border-emerald-500/70 w-full max-w-md rounded-3xl p-6 shadow-2xl text-center space-y-4 relative overflow-hidden">
+                  
+                  <div className="w-14 h-14 bg-emerald-950 border border-emerald-700 text-emerald-300 rounded-2xl flex items-center justify-center mx-auto text-3xl font-black shadow-lg shadow-emerald-950/50">
+                    💬
+                  </div>
+
+                  <div>
+                    <h3 className="font-extrabold text-white text-base tracking-tight">¿Enviar notificación por WhatsApp?</h3>
+                    <p className="text-xs text-gray-300 mt-1 leading-relaxed">
+                      Se asignó la tarea a <strong className="text-emerald-300">{currentPrompt.recipientName}</strong> ({currentPrompt.recipientPhone}). ¿Deseas abrir WhatsApp para enviarle el mensaje?
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-950/90 border border-gray-800 rounded-2xl p-3.5 text-left text-xs text-emerald-100 whitespace-pre-wrap font-sans leading-relaxed max-h-48 overflow-y-auto">
+                    {currentPrompt.message}
+                  </div>
+
+                  {remainingCount > 0 && (
+                    <p className="text-[11px] text-amber-400 font-semibold">
+                      📋 Notificación 1 de {whatsAppPromptQueue.length} ({remainingCount} destinatario(s) más pendiente(s))
+                    </p>
+                  )}
+
+                  <div className="flex items-center justify-center space-x-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWhatsAppPromptQueue(prev => prev.slice(1));
+                      }}
+                      className="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold text-xs rounded-xl transition-all cursor-pointer"
+                    >
+                      Omitir (No enviar)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.open(currentPrompt.waUrl, '_blank');
+                        setWhatsAppPromptQueue(prev => prev.slice(1));
+                      }}
+                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/30 flex items-center space-x-1.5 transition-all cursor-pointer"
+                    >
+                      <span>📱 Abrir WhatsApp y Enviar</span>
+                      <span>➔</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* MODAL DE ALERTA Y CONFIRMACIÓN UNIFICADO DE LA APP (DISEÑO ESMERALDA & ORO) */}
+          {appAlert && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/85 backdrop-blur-md">
+              <div className={`bg-gray-900 border ${
+                appAlert.type === 'CONFIRM'
+                  ? 'border-amber-600/70 shadow-amber-950/40'
+                  : appAlert.type === 'WARNING'
+                  ? 'border-amber-500/70 shadow-amber-500/20'
+                  : appAlert.type === 'SUCCESS'
+                  ? 'border-emerald-500/70 shadow-emerald-500/20'
+                  : 'border-red-800/80 shadow-red-950/50'
+              } w-full max-w-md rounded-2xl p-6 shadow-2xl text-center space-y-4 relative overflow-hidden`}>
+                
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto text-2xl font-black shadow-lg ${
+                  appAlert.type === 'CONFIRM' || appAlert.type === 'WARNING'
+                    ? 'bg-amber-950 border border-amber-700 text-amber-300'
+                    : appAlert.type === 'SUCCESS'
+                    ? 'bg-emerald-950 border border-emerald-700 text-emerald-300'
+                    : 'bg-red-950 border border-red-800 text-red-400'
+                }`}>
+                  {appAlert.type === 'CONFIRM' ? '❓' : appAlert.type === 'WARNING' ? '⚠️' : appAlert.type === 'SUCCESS' ? '✅' : '🚫'}
+                </div>
+
+                <div>
+                  <h3 className="font-extrabold text-white text-base tracking-tight">{appAlert.title}</h3>
+                  <p className="text-xs text-gray-300 mt-2 leading-relaxed whitespace-pre-wrap">{appAlert.message}</p>
+                </div>
+
+                {appAlert.type === 'CONFIRM' ? (
+                  <div className="flex items-center justify-center space-x-3 pt-2">
+                    <button
+                      onClick={() => setAppAlert(null)}
+                      className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-semibold rounded-xl transition-all cursor-pointer"
+                    >
+                      {appAlert.cancelText || 'Cancelar'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (appAlert.onConfirm) appAlert.onConfirm();
+                        setAppAlert(null);
+                      }}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer"
+                    >
+                      {appAlert.confirmText || 'Aceptar'}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setAppAlert(null)}
+                    className="w-full py-2.5 bg-gray-800 hover:bg-gray-700 text-white font-semibold text-xs rounded-xl transition-all cursor-pointer"
+                  >
+                    Entendido
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
