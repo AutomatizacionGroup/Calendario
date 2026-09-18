@@ -1669,6 +1669,26 @@
         setSelectedTask(null);
       };
 
+      const handleDeleteProject = (project) => {
+        setAppAlert({
+          type: 'CONFIRM',
+          title: '🗑️ Eliminar Proyecto',
+          message: `¿Estás seguro de eliminar el proyecto '${project.name}'?\n\nLas tareas vinculadas a este proyecto no se borrarán, pero quedarán sin asignación de carpeta.`,
+          confirmText: 'Sí, Eliminar Proyecto',
+          cancelText: 'Cancelar',
+          onConfirm: () => {
+            setProjects(prev => prev.filter(p => p.id !== project.id));
+            setTasks(prev => prev.map(t => t.projectId === project.id ? { ...t, projectId: null } : t));
+            if (selectedProjectFilter === project.id) {
+              setSelectedProjectFilter('');
+            }
+            if (openFolderId === project.id) {
+              setOpenFolderId(null);
+            }
+          }
+        });
+      };
+
       // Month View Days
       const getMonthDays = (d) => {
         const year = d.getFullYear();
@@ -3052,6 +3072,19 @@
                                   }`}
                                 >
                                   {isOpen ? 'Cerrar Carpeta 📁' : 'Abrir Carpeta 📂'}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteProject(p);
+                                  }}
+                                  className="px-2.5 py-1.5 bg-red-950/60 hover:bg-red-900 text-red-400 hover:text-white font-bold text-xs rounded-xl border border-red-900/80 transition-all cursor-pointer flex items-center space-x-1 shrink-0"
+                                  title="Eliminar Proyecto"
+                                >
+                                  <span>🗑️</span>
+                                  <span className="hidden sm:inline">Eliminar</span>
                                 </button>
                               </div>
                             </div>
