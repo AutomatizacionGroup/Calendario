@@ -47,10 +47,7 @@
 
     // --- INITIAL SEED DATA WITH MULTIPLE CONTRACTORS & AUCTION TASKS ---
     const DEFAULT_USERS = [
-      { id: 'usr-1', name: 'Ing. Carlos Mendoza (Jefe)', email: 'jefe@empresa.com', phone: '+525551234567', role: 'BOSS', status: 'ACTIVE' },
-      { id: 'usr-2', name: 'Juan Pérez (Empleado Técnico)', email: 'empleado@empresa.com', phone: '+525559876543', role: 'EMPLOYEE', status: 'ACTIVE' },
-      { id: 'usr-3', name: 'Roberto Gómez (Contratista 3ero - Electricista)', email: 'roberto@terceros.com', phone: '+525554443322', role: 'THIRD_PARTY', status: 'ACTIVE' },
-      { id: 'usr-4', name: 'Mario Silva (Partner Contratista - Climatización)', email: 'mario@partners.com', phone: '+525557778899', role: 'THIRD_PARTY', status: 'ACTIVE' }
+      { id: 'usr-1', name: 'Ing. Carlos Mendoza (Jefe)', email: 'jefe@empresa.com', phone: '+525551234567', role: 'BOSS', status: 'ACTIVE' }
     ];
 
     const DEFAULT_PROJECTS = [
@@ -248,10 +245,10 @@
             </div>
 
             {/* Tab Selection Buttons */}
-            <div className="grid grid-cols-2 p-1 bg-gray-950/80 border border-gray-800/80 rounded-2xl mb-6 text-[11px] sm:text-xs font-bold">
+            <div className="grid grid-cols-3 p-1 bg-gray-950/80 border border-gray-800/80 rounded-2xl mb-6 text-[11px] sm:text-xs font-bold">
               <button
                 type="button"
-                onClick={() => setActiveTab('FAST_PROFILES')}
+                onClick={() => { setActiveTab('FAST_PROFILES'); setRegSuccess(false); }}
                 className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center space-x-1 ${
                   activeTab === 'FAST_PROFILES'
                     ? 'bg-emerald-600 text-white shadow-md'
@@ -262,7 +259,7 @@
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('CREDENTIALS')}
+                onClick={() => { setActiveTab('CREDENTIALS'); setRegSuccess(false); }}
                 className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center space-x-1 ${
                   activeTab === 'CREDENTIALS'
                     ? 'bg-emerald-600 text-white shadow-md'
@@ -270,6 +267,17 @@
                 }`}
               >
                 <span>🔒 Ingreso</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setActiveTab('REGISTER'); setRegSuccess(false); }}
+                className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center space-x-1 ${
+                  activeTab === 'REGISTER'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <span>✨ Crear Cuenta</span>
               </button>
             </div>
 
@@ -384,6 +392,108 @@
                   <span>Iniciar Sesión Segura</span>
                   <span>➔</span>
                 </button>
+              </form>
+            )}
+
+            {/* TAB 3: REGISTRO / CREAR CUENTA */}
+            {activeTab === 'REGISTER' && (
+              <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                {regSuccess ? (
+                  <div className="p-4 bg-emerald-950/80 border border-emerald-700/80 rounded-2xl text-emerald-200 text-xs leading-relaxed text-center space-y-3">
+                    <div className="text-2xl">🎉</div>
+                    <p className="font-bold text-sm text-emerald-300">¡Cuenta registrada con éxito!</p>
+                    <p>Tu solicitud ha sido enviada al <strong>Jefe / Administrador</strong> para la asignación de tu rol de acceso.</p>
+                    <p className="text-[11px] text-emerald-400">Una vez aprobado, podrás ingresar con tu usuario o correo electrónico.</p>
+                    <button
+                      type="button"
+                      onClick={() => { setActiveTab('CREDENTIALS'); setRegSuccess(false); }}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-all cursor-pointer mt-2"
+                    >
+                      Ir al Formulario de Ingreso
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {regError && (
+                      <div className="p-3 bg-red-950/80 border border-red-800 text-red-300 rounded-xl text-xs font-semibold leading-relaxed">
+                        {regError}
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wider">Nombre Completo *</label>
+                      <input
+                        type="text"
+                        required
+                        value={regName}
+                        onChange={e => setRegName(e.target.value)}
+                        placeholder="Ej. Ing. Roberto Gómez"
+                        className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold placeholder:text-gray-600"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wider">Correo Electrónico *</label>
+                        <input
+                          type="email"
+                          required
+                          value={regEmail}
+                          onChange={e => setRegEmail(e.target.value)}
+                          placeholder="usuario@empresa.com"
+                          className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 placeholder:text-gray-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wider">Teléfono / WhatsApp</label>
+                        <input
+                          type="tel"
+                          value={regPhone}
+                          onChange={e => setRegPhone(e.target.value)}
+                          placeholder="+525551234567"
+                          className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 placeholder:text-gray-600"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wider">Contraseña *</label>
+                        <input
+                          type="password"
+                          required
+                          value={regPassword}
+                          onChange={e => setRegPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wider">Confirmar Contraseña *</label>
+                        <input
+                          type="password"
+                          required
+                          value={regConfirmPassword}
+                          onChange={e => setRegConfirmPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] text-amber-400/90 font-medium bg-amber-950/40 p-2.5 rounded-xl border border-amber-800/40">
+                      ℹ️ Nota: Al registrarte, tu cuenta quedará en estado <strong>Pendiente de Aprobación</strong>. El Jefe o Administrador asignará tu rol antes de dar acceso.
+                    </p>
+
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center justify-center space-x-2 mt-2"
+                    >
+                      <span>Enviar Solicitud de Registro</span>
+                      <span>✨</span>
+                    </button>
+                  </>
+                )}
               </form>
             )}
 
