@@ -47,7 +47,7 @@
 
     // --- INITIAL SEED DATA WITH MULTIPLE CONTRACTORS & AUCTION TASKS ---
     const DEFAULT_USERS = [
-      { id: 'usr-1', name: 'Ing. Carlos Mendoza (Jefe)', email: 'jefe@empresa.com', phone: '+525551234567', role: 'BOSS', status: 'ACTIVE' }
+      { id: 'usr-1', name: 'Ing. Carlos Mendoza (Jefe)', username: 'carlos.mendoza', email: 'jefe@empresa.com', phone: '+525551234567', role: 'BOSS', status: 'ACTIVE' }
     ];
 
     const DEFAULT_PROJECTS = [
@@ -146,6 +146,7 @@
 
       // Registration State
       const [regName, setRegName] = useState('');
+      const [regUsername, setRegUsername] = useState('');
       const [regEmail, setRegEmail] = useState('');
       const [regPhone, setRegPhone] = useState('');
       const [regPassword, setRegPassword] = useState('');
@@ -164,9 +165,11 @@
 
         const target = users.find(u => 
           u.email.toLowerCase() === query || 
+          (u.username && u.username.toLowerCase() === query) ||
           u.name.toLowerCase() === query ||
           u.id.toLowerCase() === query ||
           u.email.toLowerCase().includes(query) ||
+          (u.username && u.username.toLowerCase().includes(query)) ||
           u.name.toLowerCase().includes(query)
         );
 
@@ -186,23 +189,33 @@
       const handleRegisterSubmit = (e) => {
         e.preventDefault();
         setRegError('');
-        if (!regName.trim() || !regEmail.trim() || !regPassword) {
-          setRegError('Por favor completa todos los campos obligatorios.');
+        if (!regName.trim() || !regUsername.trim() || !regEmail.trim() || !regPassword) {
+          setRegError('Por favor completa todos los campos obligatorios, incluyendo tu Nombre de Usuario.');
           return;
         }
         if (regPassword !== regConfirmPassword) {
           setRegError('Las contraseñas no coinciden.');
           return;
         }
-        const exists = users.some(u => u.email.toLowerCase() === regEmail.trim().toLowerCase());
-        if (exists) {
+
+        const cleanUsername = regUsername.trim().toLowerCase().replace(/\s+/g, '');
+
+        const emailExists = users.some(u => u.email.toLowerCase() === regEmail.trim().toLowerCase());
+        if (emailExists) {
           setRegError('Ya existe un usuario registrado con este correo electrónico.');
+          return;
+        }
+
+        const usernameExists = users.some(u => (u.username || '').toLowerCase() === cleanUsername);
+        if (usernameExists) {
+          setRegError(`El nombre de usuario '@${cleanUsername}' ya está registrado. Por favor elige otro.`);
           return;
         }
 
         const newUser = {
           id: 'usr-' + Date.now(),
           name: regName.trim(),
+          username: cleanUsername,
           email: regEmail.trim(),
           phone: regPhone.trim() || '+525550000000',
           role: 'PENDING',
@@ -339,16 +352,29 @@
                       </div>
                     )}
 
-                    <div>
-                      <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wider">Nombre Completo *</label>
-                      <input
-                        type="text"
-                        required
-                        value={regName}
-                        onChange={e => setRegName(e.target.value)}
-                        placeholder="Ej. Ing. Roberto Gómez"
-                        className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold placeholder:text-gray-600"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wider">Nombre Completo *</label>
+                        <input
+                          type="text"
+                          required
+                          value={regName}
+                          onChange={e => setRegName(e.target.value)}
+                          placeholder="Ej. Ing. Roberto Gómez"
+                          className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold placeholder:text-gray-600"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wider">Nombre de Usuario *</label>
+                        <input
+                          type="text"
+                          required
+                          value={regUsername}
+                          onChange={e => setRegUsername(e.target.value)}
+                          placeholder="Ej. roberto_gomez"
+                          className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold placeholder:text-gray-600"
+                        />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -432,6 +458,7 @@
       if (!isOpen || !currentUser) return null;
 
       const [name, setName] = useState(currentUser.name || '');
+      const [username, setUsername] = useState(currentUser.username || '');
       const [email, setEmail] = useState(currentUser.email || '');
       const [phone, setPhone] = useState(currentUser.phone || '');
       const [requestedRole, setRequestedRole] = useState(currentUser.role || 'EMPLOYEE');
@@ -442,6 +469,7 @@
       useEffect(() => {
         if (currentUser) {
           setName(currentUser.name || '');
+          setUsername(currentUser.username || '');
           setEmail(currentUser.email || '');
           setPhone(currentUser.phone || '');
           setRequestedRole(currentUser.pendingRoleChange || currentUser.role || 'EMPLOYEE');
@@ -457,6 +485,7 @@
         let updatedUser = {
           ...currentUser,
           name: name.trim(),
+          username: (username.trim() || currentUser.username || '').toLowerCase().replace(/\s+/g, ''),
           email: email.trim(),
           phone: phone.trim() || '+525550000000'
         };
@@ -514,15 +543,27 @@
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wider">Nombre Completo *</label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wider">Nombre Completo *</label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 mb-1.5 uppercase tracking-wider">Usuario (@)</label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    placeholder="usuario"
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold"
+                  />
+                </div>
               </div>
 
               <div>
