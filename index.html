@@ -427,21 +427,25 @@
       );
     }
 
-    // --- USER PROFILE MODAL (EDIT OWN PROFILE) ---
+    // --- USER PROFILE MODAL (EDIT OWN PROFILE & REQUEST ROLE CHANGE) ---
     function UserProfileModal({ isOpen, onClose, currentUser, setCurrentUser, setUsers }) {
       if (!isOpen || !currentUser) return null;
 
       const [name, setName] = useState(currentUser.name || '');
       const [email, setEmail] = useState(currentUser.email || '');
       const [phone, setPhone] = useState(currentUser.phone || '');
-      const [savedSuccess, setSavedSuccess] = useState(false);
+      const [requestedRole, setRequestedRole] = useState(currentUser.role || 'EMPLOYEE');
+      const [savedSuccess, setSavedSuccess] = useState('');
+
+      const isBoss = currentUser.role === 'BOSS';
 
       useEffect(() => {
         if (currentUser) {
           setName(currentUser.name || '');
           setEmail(currentUser.email || '');
           setPhone(currentUser.phone || '');
-          setSavedSuccess(false);
+          setRequestedRole(currentUser.pendingRoleChange || currentUser.role || 'EMPLOYEE');
+          setSavedSuccess('');
         }
       }, [currentUser, isOpen]);
 
@@ -449,20 +453,37 @@
         e.preventDefault();
         if (!name.trim() || !email.trim()) return;
 
-        const updatedUser = {
+        let roleChangeRequested = false;
+        let updatedUser = {
           ...currentUser,
           name: name.trim(),
           email: email.trim(),
           phone: phone.trim() || '+525550000000'
         };
 
+        // If current user is BOSS, role change is immediate
+        if (isBoss) {
+          updatedUser.role = requestedRole;
+          delete updatedUser.pendingRoleChange;
+        } else if (requestedRole !== currentUser.role) {
+          // If non-Boss selects a different role, create a pending request for Boss approval
+          updatedUser.pendingRoleChange = requestedRole;
+          roleChangeRequested = true;
+        }
+
         setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
         setCurrentUser(updatedUser);
-        setSavedSuccess(true);
+
+        if (roleChangeRequested) {
+          setSavedSuccess('📩 ¡Perfil guardado! Tu solicitud de cambio de rol ha sido enviada al Jefe para su aprobación.');
+        } else {
+          setSavedSuccess('✓ ¡Perfil actualizado correctamente!');
+        }
+
         setTimeout(() => {
-          setSavedSuccess(false);
+          setSavedSuccess('');
           onClose();
-        }, 1200);
+        }, 1800);
       };
 
       return (
@@ -475,7 +496,7 @@
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-white">Editar Mi Perfil</h3>
-                  <p className="text-xs text-gray-400">Actualiza tus datos personales de contacto</p>
+                  <p className="text-xs text-gray-400">Actualiza tus datos y solicita cambio de rol</p>
                 </div>
               </div>
               <button
@@ -488,8 +509,8 @@
 
             <form onSubmit={handleSave} className="p-6 space-y-4">
               {savedSuccess && (
-                <div className="p-3 bg-emerald-950/90 border border-emerald-700 text-emerald-200 rounded-xl text-xs font-bold text-center">
-                  ✓ ¡Perfil actualizado correctamente!
+                <div className="p-3 bg-emerald-950/90 border border-emerald-700 text-emerald-200 rounded-xl text-xs font-bold text-center leading-relaxed">
+                  {savedSuccess}
                 </div>
               )}
 
@@ -526,6 +547,56 @@
                 />
               </div>
 
+              <div className="pt-2 border-t border-gray-800 space-y-2">
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider">
+                  Rol en el Sistema
+                </label>
+                {isBoss ? (
+                  <select
+                    value={requestedRole}
+                    onChange={e => setRequestedRole(e.target.value)}
+                    className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-semibold"
+                  >
+                    <option value="BOSS">👑 Jefe / Admin</option>
+                    <option value="EMPLOYEE">👷 Empleado Técnico</option>
+                    <option value="THIRD_PARTY">🔧 Contratista 3ero</option>
+                  </select>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2.5 bg-gray-950 border border-gray-800 rounded-xl text-xs">
+                      <span className="text-gray-400">Rol Actual:</span>
+                      <span className="font-bold text-emerald-300">
+                        {currentUser.role === 'THIRD_PARTY' ? '🔧 Contratista 3ero' : '👷 Empleado Técnico'}
+                      </span>
+                    </div>
+
+                    {currentUser.pendingRoleChange && (
+                      <div className="p-2.5 bg-amber-950/60 border border-amber-700/60 rounded-xl text-xs text-amber-200">
+                        ⏳ Solicitud pendiente enviada para cambiar a: <strong>
+                          {currentUser.pendingRoleChange === 'BOSS' ? '👑 Jefe / Admin' : currentUser.pendingRoleChange === 'THIRD_PARTY' ? '🔧 Contratista 3ero' : '👷 Empleado Técnico'}
+                        </strong>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-gray-400 mb-1">Solicitar Cambio a Rol:</label>
+                      <select
+                        value={requestedRole}
+                        onChange={e => setRequestedRole(e.target.value)}
+                        className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500 font-semibold"
+                      >
+                        <option value="EMPLOYEE">👷 Empleado Técnico</option>
+                        <option value="THIRD_PARTY">🔧 Contratista 3ero</option>
+                        <option value="BOSS">👑 Jefe / Admin</option>
+                      </select>
+                      <p className="text-[10px] text-amber-400/90 mt-1">
+                        ℹ️ El cambio de rol requiere aprobación del usuario Jefe.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="pt-2 flex items-center space-x-2 justify-end">
                 <button
                   type="button"
@@ -551,7 +622,8 @@
     function UserManagementModal({ isOpen, onClose, users, setUsers, setAppAlert, currentUser, setCurrentUser }) {
       if (!isOpen) return null;
 
-      const pendingUsers = users.filter(u => u.status === 'PENDING_APPROVAL' || u.role === 'PENDING');
+      const pendingRegistrations = users.filter(u => u.status === 'PENDING_APPROVAL' || u.role === 'PENDING');
+      const pendingRoleChanges = users.filter(u => u.status !== 'PENDING_APPROVAL' && u.pendingRoleChange);
       const activeUsers = users.filter(u => u.status !== 'PENDING_APPROVAL' && u.role !== 'PENDING');
 
       const [selectedRoles, setSelectedRoles] = useState({});
@@ -560,6 +632,65 @@
       const [editEmail, setEditEmail] = useState('');
       const [editPhone, setEditPhone] = useState('');
       const [editRole, setEditRole] = useState('');
+
+      const handleApproveRegistration = (user) => {
+        const roleToAssign = selectedRoles[user.id] || 'THIRD_PARTY';
+        setUsers(prev => prev.map(u => {
+          if (u.id === user.id) {
+            return {
+              ...u,
+              role: roleToAssign,
+              status: 'ACTIVE'
+            };
+          }
+          return u;
+        }));
+      };
+
+      const handleApproveRoleChange = (userId) => {
+        setUsers(prev => prev.map(u => {
+          if (u.id === userId) {
+            const updated = {
+              ...u,
+              role: u.pendingRoleChange
+            };
+            delete updated.pendingRoleChange;
+            if (currentUser && currentUser.id === userId && setCurrentUser) {
+              setCurrentUser(updated);
+            }
+            return updated;
+          }
+          return u;
+        }));
+      };
+
+      const handleRejectRoleChange = (userId) => {
+        setUsers(prev => prev.map(u => {
+          if (u.id === userId) {
+            const updated = { ...u };
+            delete updated.pendingRoleChange;
+            return updated;
+          }
+          return u;
+        }));
+      };
+
+      const handleRejectUser = (userId) => {
+        if (setAppAlert) {
+          setAppAlert({
+            type: 'CONFIRM',
+            title: '🗑️ Eliminar Usuario',
+            message: '¿Estás seguro de eliminar este usuario del sistema?',
+            confirmText: 'Sí, Eliminar',
+            cancelText: 'Cancelar',
+            onConfirm: () => {
+              setUsers(prev => prev.filter(u => u.id !== userId));
+            }
+          });
+        } else {
+          setUsers(prev => prev.filter(u => u.id !== userId));
+        }
+      };
 
       const handleStartEdit = (u) => {
         setEditingUserId(u.id);
@@ -589,50 +720,6 @@
         setEditingUserId(null);
       };
 
-      const handleApprove = (user) => {
-        const roleToAssign = selectedRoles[user.id] || 'THIRD_PARTY';
-        setUsers(prev => prev.map(u => {
-          if (u.id === user.id) {
-            return {
-              ...u,
-              role: roleToAssign,
-              status: 'ACTIVE'
-            };
-          }
-          return u;
-        }));
-      };
-
-      const handleReject = (userId) => {
-        if (setAppAlert) {
-          setAppAlert({
-            type: 'CONFIRM',
-            title: '🗑️ Eliminar Usuario',
-            message: '¿Estás seguro de eliminar este usuario del sistema?',
-            confirmText: 'Sí, Eliminar',
-            cancelText: 'Cancelar',
-            onConfirm: () => {
-              setUsers(prev => prev.filter(u => u.id !== userId));
-            }
-          });
-        } else {
-          setUsers(prev => prev.filter(u => u.id !== userId));
-        }
-      };
-
-      const handleChangeRole = (userId, newRole) => {
-        setUsers(prev => prev.map(u => {
-          if (u.id === userId) {
-            const updated = { ...u, role: newRole, status: 'ACTIVE' };
-            if (currentUser && currentUser.id === userId && setCurrentUser) {
-              setCurrentUser(updated);
-            }
-            return updated;
-          }
-          return u;
-        }));
-      };
-
       return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 border border-gray-800 rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
@@ -643,8 +730,8 @@
                   👥
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-white">Gestión de Usuarios & Edición de Perfiles</h3>
-                  <p className="text-xs text-gray-400">Panel del Administrador / Jefe para editar datos, roles y aprobar accesos</p>
+                  <h3 className="text-base font-extrabold text-white">Gestión de Usuarios & Aprobación de Roles</h3>
+                  <p className="text-xs text-gray-400">Panel del Jefe / Admin para autorizar solicitudes y editar perfiles</p>
                 </div>
               </div>
               <button
@@ -657,25 +744,23 @@
 
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto space-y-6 flex-1">
-              {/* SECTION 1: SOLICITUDES PENDIENTES */}
+              {/* SECTION 1: SOLICITUDES DE REGISTRO DE CUENTA */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center space-x-1.5">
-                    <span>⏳ Solicitudes Pendientes de Aprobación</span>
-                    <span className="bg-amber-950 border border-amber-700 text-amber-300 rounded-full px-2 py-0.5 text-[10px] font-black">
-                      {pendingUsers.length}
-                    </span>
-                  </h4>
-                </div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center space-x-1.5">
+                  <span>⏳ Solicitudes de Registro Pendientes</span>
+                  <span className="bg-amber-950 border border-amber-700 text-amber-300 rounded-full px-2 py-0.5 text-[10px] font-black">
+                    {pendingRegistrations.length}
+                  </span>
+                </h4>
 
-                {pendingUsers.length === 0 ? (
-                  <div className="p-4 bg-gray-950/40 border border-gray-800/80 rounded-2xl text-center text-xs text-gray-500">
-                    No hay solicitudes de registro pendientes en este momento.
+                {pendingRegistrations.length === 0 ? (
+                  <div className="p-3 bg-gray-950/40 border border-gray-800/80 rounded-2xl text-center text-xs text-gray-500">
+                    No hay registros de cuenta pendientes.
                   </div>
                 ) : (
                   <div className="space-y-2.5">
-                    {pendingUsers.map(u => (
-                      <div key={u.id} className="p-4 bg-gray-950/80 border border-amber-900/40 hover:border-amber-700/60 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+                    {pendingRegistrations.map(u => (
+                      <div key={u.id} className="p-4 bg-gray-950/80 border border-amber-900/40 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
                         <div className="flex items-center space-x-3">
                           <div className="w-10 h-10 rounded-xl bg-amber-950 border border-amber-700 text-amber-300 flex items-center justify-center font-bold text-lg">
                             ⏳
@@ -698,7 +783,7 @@
                           </select>
 
                           <button
-                            onClick={() => handleApprove(u)}
+                            onClick={() => handleApproveRegistration(u)}
                             className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center space-x-1"
                           >
                             <span>✓</span>
@@ -706,7 +791,7 @@
                           </button>
 
                           <button
-                            onClick={() => handleReject(u.id)}
+                            onClick={() => handleRejectUser(u.id)}
                             className="px-2.5 py-1.5 bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-800 font-bold text-xs rounded-xl transition-all cursor-pointer"
                           >
                             ✕
@@ -718,10 +803,68 @@
                 )}
               </div>
 
-              {/* SECTION 2: USUARIOS ACTIVOS & EDICIÓN DE PERFILES */}
+              {/* SECTION 2: SOLICITUDES DE CAMBIO DE ROL */}
+              <div className="space-y-3 pt-4 border-t border-gray-800">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-teal-400 flex items-center space-x-1.5">
+                  <span>⚡ Solicitudes de Cambio de Rol Pendientes</span>
+                  <span className="bg-teal-950 border border-teal-700 text-teal-300 rounded-full px-2 py-0.5 text-[10px] font-black">
+                    {pendingRoleChanges.length}
+                  </span>
+                </h4>
+
+                {pendingRoleChanges.length === 0 ? (
+                  <div className="p-3 bg-gray-950/40 border border-gray-800/80 rounded-2xl text-center text-xs text-gray-500">
+                    No hay solicitudes de cambio de rol pendientes.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {pendingRoleChanges.map(u => {
+                      const currentRoleLabel = u.role === 'BOSS' ? '👑 Jefe' : u.role === 'THIRD_PARTY' ? '🔧 Contratista 3ero' : '👷 Empleado Técnico';
+                      const requestedRoleLabel = u.pendingRoleChange === 'BOSS' ? '👑 Jefe / Admin' : u.pendingRoleChange === 'THIRD_PARTY' ? '🔧 Contratista 3ero' : '👷 Empleado Técnico';
+
+                      return (
+                        <div key={u.id} className="p-4 bg-teal-950/20 border border-teal-800/60 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-xl bg-teal-950 border border-teal-700 text-teal-300 flex items-center justify-center font-bold text-lg">
+                              ⚡
+                            </div>
+                            <div>
+                              <div className="font-bold text-white text-sm">{u.name}</div>
+                              <div className="text-xs text-gray-300 flex items-center space-x-1.5 mt-0.5">
+                                <span>Rol Actual: <strong className="text-gray-400">{currentRoleLabel}</strong></span>
+                                <span>➔</span>
+                                <span>Solicita: <strong className="text-emerald-300">{requestedRoleLabel}</strong></span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleApproveRoleChange(u.id)}
+                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center space-x-1"
+                            >
+                              <span>✓</span>
+                              <span>Aprobar Rol</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleRejectRoleChange(u.id)}
+                              className="px-3 py-1.5 bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-800 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                            >
+                              ✕ Rechazar
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* SECTION 3: USUARIOS ACTIVOS */}
               <div className="space-y-3 pt-4 border-t border-gray-800">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center space-x-1.5">
-                  <span>👥 Usuarios Activos & Edición de Perfil ({activeUsers.length})</span>
+                  <span>👥 Usuarios Activos & Edición Directa ({activeUsers.length})</span>
                 </h4>
 
                 <div className="space-y-2.5">
@@ -801,33 +944,30 @@
                                 {u.role === 'BOSS' ? '👑' : u.role === 'THIRD_PARTY' ? '🔧' : '👷'}
                               </div>
                               <div>
-                                <div className="font-bold text-white text-xs">{u.name}</div>
+                                <div className="flex items-center space-x-2">
+                                  <span className="font-bold text-white text-xs">{u.name}</span>
+                                  {u.pendingRoleChange && (
+                                    <span className="px-2 py-0.5 bg-teal-950 border border-teal-700 text-teal-300 text-[9px] font-black rounded-full">
+                                      ⚡ Cambio Pendiente: {u.pendingRoleChange === 'BOSS' ? 'Jefe' : u.pendingRoleChange === 'THIRD_PARTY' ? '3ero' : 'Empleado'}
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="text-[11px] text-gray-400">{u.email} • {u.phone}</div>
                               </div>
                             </div>
 
                             <div className="flex items-center space-x-2">
-                              <select
-                                value={u.role}
-                                onChange={e => handleChangeRole(u.id, e.target.value)}
-                                className="bg-gray-900 border border-gray-800 rounded-xl px-2.5 py-1.5 text-[11px] text-gray-300 focus:outline-none focus:border-emerald-500 font-semibold"
-                              >
-                                <option value="BOSS">👑 Jefe / Admin</option>
-                                <option value="EMPLOYEE">👷 Empleado Técnico</option>
-                                <option value="THIRD_PARTY">🔧 Contratista 3ero</option>
-                              </select>
-
                               <button
                                 onClick={() => handleStartEdit(u)}
                                 className="px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-emerald-400 font-bold text-xs rounded-xl border border-gray-700 hover:border-emerald-500 transition-all cursor-pointer flex items-center space-x-1"
-                                title="Editar nombre, teléfono, correo y datos"
+                                title="Editar datos"
                               >
                                 <span>✏️ Editar</span>
                               </button>
 
                               {users.length > 1 && u.id !== currentUser?.id && (
                                 <button
-                                  onClick={() => handleReject(u.id)}
+                                  onClick={() => handleRejectUser(u.id)}
                                   className="px-2.5 py-1.5 bg-red-950/60 hover:bg-red-900 text-red-400 font-bold text-xs rounded-xl border border-red-900 transition-all cursor-pointer"
                                   title="Eliminar usuario"
                                 >
@@ -1577,7 +1717,7 @@
       };
 
       const completedTasks = tasks.filter(t => t.status === 'COMPLETED');
-      const pendingUsersCount = users.filter(u => u.status === 'PENDING_APPROVAL' || u.role === 'PENDING').length;
+      const pendingUsersCount = users.filter(u => u.status === 'PENDING_APPROVAL' || u.role === 'PENDING' || u.pendingRoleChange).length;
 
       if (!isLoggedIn) {
         return <LoginScreen users={users} onLogin={handleLogin} onRegister={handleRegisterUser} />;
