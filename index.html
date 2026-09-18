@@ -2355,6 +2355,20 @@
                                 ? '⚡ ¡Cualquier contratista o partner puede reclamarlo!'
                                 : `👥 Asignados (${assignedUsers.length}): ${assignedUsers.map(u => u.name).join(', ')}`}
                             </p>
+                            {t.location && (
+                              <div className="flex items-center justify-between text-xs text-emerald-300 pt-1 border-t border-gray-800/60">
+                                <span className="truncate font-medium">📍 {t.location}</span>
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(t.location)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="px-2 py-0.5 bg-emerald-950 hover:bg-emerald-900 border border-emerald-600/80 rounded-lg text-[11px] font-bold text-emerald-300 flex items-center gap-1 shrink-0 ml-2 transition-colors"
+                                >
+                                  🗺️ Maps ↗
+                                </a>
+                              </div>
+                            )}
                             <p className="text-xs text-gray-500 font-mono">⏰ {new Date(t.startTime).toLocaleString('es-ES')}</p>
                           </div>
                         );
@@ -2578,6 +2592,37 @@
                 </div>
 
                 <div className="space-y-3 text-xs text-gray-300">
+                  {/* CARD DE UBICACIÓN Y GOOGLE MAPS */}
+                  {selectedTask.location ? (
+                    <div className="flex items-center justify-between bg-emerald-950/40 border border-emerald-500/40 p-3 rounded-xl shadow-md">
+                      <div className="space-y-0.5">
+                        <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">📍 Ubicación del Trabajo:</span>
+                        <p className="text-sm font-extrabold text-white">{selectedTask.location}</p>
+                      </div>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedTask.location)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-black text-xs rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 transition-all shrink-0 ml-2"
+                      >
+                        <span>🗺️ Abrir en Google Maps</span>
+                        <span>➔</span>
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between bg-gray-950/80 border border-gray-800 p-2.5 rounded-xl text-xs text-gray-400">
+                      <span>📍 Ubicación: <strong className="text-gray-300">No especificada</strong></span>
+                      <a
+                        href={`https://www.google.com/maps`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold underline"
+                      >
+                        🗺️ Abrir Maps
+                      </a>
+                    </div>
+                  )}
+
                   {/* BOTÓN RECLAMAR SI ES SUBASTA LIBRE */}
                   {(selectedTask.status === 'OPEN_AUCTION' || getTaskAssignedIds(selectedTask).length === 0) ? (
                     <div className="p-4 bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 border border-amber-500/80 rounded-2xl text-center space-y-3 shadow-xl">
@@ -2714,22 +2759,6 @@
                     </div>
                   )}
 
-                  {selectedTask.location && (
-                    <div className="flex items-center justify-between bg-gray-950 p-2.5 rounded-xl border border-gray-800 text-xs">
-                      <div>
-                        <span className="text-gray-400 font-medium">📍 Ubicación:</span>
-                        <p className="text-white font-semibold">{selectedTask.location}</p>
-                      </div>
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedTask.location)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-2.5 py-1.5 bg-emerald-950/90 border border-emerald-700/70 text-emerald-300 hover:bg-emerald-900 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all shrink-0 ml-2"
-                      >
-                        🗺️ Ver en Maps
-                      </a>
-                    </div>
-                  )}
                   {selectedTask.description && <p>📝 Detalles: <span className="text-gray-400">{selectedTask.description}</span></p>}
 
                   {selectedTask.assignedToId && (
@@ -3249,7 +3278,16 @@
 
                                               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-400 mt-1">
                                                 <span>⏰ {new Date(task.startTime).toLocaleDateString('es-ES')} ({new Date(task.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} - {new Date(task.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })})</span>
-                                                {task.location && <span>📍 {task.location}</span>}
+                                                 {task.location && (
+                                                   <a
+                                                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(task.location)}`}
+                                                     target="_blank"
+                                                     rel="noopener noreferrer"
+                                                     className="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 underline"
+                                                   >
+                                                     📍 {task.location} 🗺️
+                                                   </a>
+                                                 )}
                                                 <span>👤 Realizado/Asignado: <strong className="text-gray-200 font-semibold">{assignedUsers.map(u => u.name).join(', ') || 'Sin Asignar'}</strong></span>
                                               </div>
 
