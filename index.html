@@ -1409,7 +1409,8 @@
                   .map(u => u.name)
                   .join(', ');
 
-                const msg = `NUEVA ASIGNACIÓN DE TRABAJO\n\nHola ${targetUser.name}, ${currentUser.name} te ha asignado al trabajo:\nTrabajo: ${newTask.title}\nFecha: ${formattedDate}\nHorario: ${startTimeStr} - ${endTimeStr}\n${otherNames ? `Participantes: ${targetUser.name}, ${otherNames}\n` : ''}${location ? `Ubicación: ${location}\n` : ''}${description ? `Detalles: ${description}\n` : ''}\nNota: Horario reservado en tu agenda.`;
+                const mapsUrl = location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}` : '';
+                const msg = `NUEVA ASIGNACIÓN DE TRABAJO\n\nHola ${targetUser.name}, ${currentUser.name} te ha asignado al trabajo:\nTrabajo: ${newTask.title}\nFecha: ${formattedDate}\nHorario: ${startTimeStr} - ${endTimeStr}\n${otherNames ? `Participantes: ${targetUser.name}, ${otherNames}\n` : ''}${location ? `Ubicación: ${location}\n🗺️ Mapa: ${mapsUrl}\n` : ''}${description ? `Detalles: ${description}\n` : ''}\nNota: Horario reservado en tu agenda.`;
 
                 const cleanPhone = (targetUser.phone || '').replace(/[^0-9]/g, '');
                 const waUrl = cleanPhone
@@ -1505,7 +1506,8 @@
         const startH = start.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         const endH = end.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
-        const msg = `TRABAJO RECLAMADO (SUBASTA)\n\nHola ${currentUser.name}, has reclamado exitosamente el trabajo:\nTrabajo: ${targetTask.title}\nFecha: ${formattedDate}\nHorario: ${startH} - ${endH}\n${targetTask.location ? `Ubicación: ${targetTask.location}\n` : ''}\nNota: Este horario ha sido reservado en tu itinerario.`;
+        const auctionMapsUrl = targetTask.location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(targetTask.location)}` : '';
+        const msg = `TRABAJO RECLAMADO (SUBASTA)\n\nHola ${currentUser.name}, has reclamado exitosamente el trabajo:\nTrabajo: ${targetTask.title}\nFecha: ${formattedDate}\nHorario: ${startH} - ${endH}\n${targetTask.location ? `Ubicación: ${targetTask.location}\n🗺️ Mapa: ${auctionMapsUrl}\n` : ''}\nNota: Este horario ha sido reservado en tu itinerario.`;
 
         setWhatsAppLogs(prev => [
           {
@@ -1583,7 +1585,8 @@
         const startH = start.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
         const endH = end.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
-        const msg = `INCORPORACIÓN A TRABAJO\n\nEl empleado ${currentUser.name} se ha unido al trabajo:\nTrabajo: ${targetTask.title}\nFecha: ${formattedDate}\nHorario: ${startH} - ${endH}\nUbicación: ${targetTask.location || 'No especificada'}\nNota: Horario reservado en el itinerario de ${currentUser.name}.`;
+        const joinMapsUrl = targetTask.location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(targetTask.location)}` : '';
+        const msg = `INCORPORACIÓN A TRABAJO\n\nEl empleado ${currentUser.name} se ha unido al trabajo:\nTrabajo: ${targetTask.title}\nFecha: ${formattedDate}\nHorario: ${startH} - ${endH}\nUbicación: ${targetTask.location || 'No especificada'}\n${targetTask.location ? `🗺️ Mapa: ${joinMapsUrl}\n` : ''}Nota: Horario reservado en el itinerario de ${currentUser.name}.`;
 
         setWhatsAppLogs(prev => [
           {
@@ -2623,7 +2626,8 @@
                           const taskDate = new Date(selectedTask.startTime).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
                           const startH = new Date(selectedTask.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
                           const endH = new Date(selectedTask.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-                          const msgText = `NOTIFICACIÓN DE TRABAJO\nHola ${u.name}, recordatorio del trabajo:\nTrabajo: ${selectedTask.title}\nFecha: ${taskDate}\nHorario: ${startH} - ${endH}\n${selectedTask.location ? `Ubicación: ${selectedTask.location}\n` : ''}${selectedTask.description ? `Detalles: ${selectedTask.description}\n` : ''}`;
+                          const mapsUrl = selectedTask.location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedTask.location)}` : '';
+                          const msgText = `NOTIFICACIÓN DE TRABAJO\nHola ${u.name}, recordatorio del trabajo:\nTrabajo: ${selectedTask.title}\nFecha: ${taskDate}\nHorario: ${startH} - ${endH}\n${selectedTask.location ? `Ubicación: ${selectedTask.location}\n🗺️ Mapa: ${mapsUrl}\n` : ''}${selectedTask.description ? `Detalles: ${selectedTask.description}\n` : ''}`;
                           const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgText)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(msgText)}`;
 
                           return (
@@ -2710,7 +2714,22 @@
                     </div>
                   )}
 
-                  {selectedTask.location && <p>📍 Ubicación: <strong className="text-white">{selectedTask.location}</strong></p>}
+                  {selectedTask.location && (
+                    <div className="flex items-center justify-between bg-gray-950 p-2.5 rounded-xl border border-gray-800 text-xs">
+                      <div>
+                        <span className="text-gray-400 font-medium">📍 Ubicación:</span>
+                        <p className="text-white font-semibold">{selectedTask.location}</p>
+                      </div>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedTask.location)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1.5 bg-emerald-950/90 border border-emerald-700/70 text-emerald-300 hover:bg-emerald-900 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all shrink-0 ml-2"
+                      >
+                        🗺️ Ver en Maps
+                      </a>
+                    </div>
+                  )}
                   {selectedTask.description && <p>📝 Detalles: <span className="text-gray-400">{selectedTask.description}</span></p>}
 
                   {selectedTask.assignedToId && (
@@ -2786,7 +2805,19 @@
                     <div className="bg-gray-950/80 border border-amber-500/30 rounded-xl p-3.5 text-left text-xs space-y-1.5 font-sans">
                       <p className="font-extrabold text-white text-sm">📌 {auctionAlertModal.taskTitle}</p>
                       <p className="text-amber-200 font-mono">📅 {auctionAlertModal.dateStr} | ⏰ {auctionAlertModal.timeStr}</p>
-                      {auctionAlertModal.location && <p className="text-gray-300">📍 {auctionAlertModal.location}</p>}
+                      {auctionAlertModal.location && (
+                        <div className="flex items-center justify-between text-gray-300 pt-0.5">
+                          <span>📍 {auctionAlertModal.location}</span>
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(auctionAlertModal.location)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-emerald-400 hover:text-emerald-300 underline font-semibold flex items-center gap-0.5 ml-2"
+                          >
+                            🗺️ Abrir Mapa
+                          </a>
+                        </div>
+                      )}
                       <div className="pt-2 border-t border-gray-800 flex items-center justify-between text-[11px] text-emerald-400 font-semibold">
                         <span>💬 Notificación WhatsApp registrada</span>
                         <span className="bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">✅ Horario Bloqueado</span>
