@@ -2144,9 +2144,12 @@
 
                     <div className="grid grid-cols-7 gap-1 text-xs text-center">
                       {monthDays.map((day, idx) => {
-                        const isSelected = day.toDateString() === currentDate.toDateString();
-                        const isToday = day.toDateString() === new Date().toDateString();
+                        const dayStr = day.toDateString();
+                        const isSelected = dayStr === currentDate.toDateString();
+                        const isToday = dayStr === new Date().toDateString();
                         const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+
+                        const dayTasks = filteredTasks.filter(t => new Date(t.startTime).toDateString() === dayStr);
 
                         return (
                           <button
@@ -2155,9 +2158,14 @@
                               setCurrentDate(day);
                               if (viewMode === 'MONTH') setViewMode('WEEK');
                             }}
-                            className={`py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                            title={
+                              dayTasks.length > 0
+                                ? `${day.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}: ${dayTasks.length} tarea(s)\n${dayTasks.map(t => '• ' + t.title).join('\n')}`
+                                : `${day.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}`
+                            }
+                            className={`py-1 px-0.5 rounded-lg text-[11px] font-medium flex flex-col items-center justify-center min-h-[36px] transition-all relative ${
                               isSelected
-                                ? 'bg-indigo-600 text-white font-bold shadow'
+                                ? 'bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-600/30'
                                 : isToday
                                 ? 'bg-indigo-950 text-indigo-400 border border-indigo-700/60 font-bold'
                                 : isCurrentMonth
@@ -2165,7 +2173,39 @@
                                 : 'text-gray-600 hover:bg-gray-800/50'
                             }`}
                           >
-                            {day.getDate()}
+                            <span>{day.getDate()}</span>
+
+                            {dayTasks.length > 0 && (
+                              <div className="flex items-center justify-center space-x-0.5 mt-0.5 max-w-full px-0.5">
+                                {dayTasks.slice(0, 4).map((t, tIdx) => {
+                                  const assignedUsers = getTaskAssignedUsers(t, users);
+                                  const isOpenAuction = t.status === 'OPEN_AUCTION' || getTaskAssignedIds(t).length === 0;
+                                  const isCompleted = t.status === 'COMPLETED';
+                                  const hasContractor = assignedUsers.some(u => u.role === 'THIRD_PARTY');
+
+                                  let dotColorClass = 'bg-indigo-500';
+                                  if (isCompleted) {
+                                    dotColorClass = 'bg-emerald-500';
+                                  } else if (isOpenAuction) {
+                                    dotColorClass = 'bg-amber-400 animate-pulse shadow-sm shadow-amber-400/50';
+                                  } else if (t.isPersonal) {
+                                    dotColorClass = 'bg-purple-500';
+                                  } else if (hasContractor) {
+                                    dotColorClass = 'bg-amber-600';
+                                  }
+
+                                  return (
+                                    <span
+                                      key={t.id || tIdx}
+                                      className={`w-1.5 h-1.5 rounded-full ${dotColorClass} shrink-0`}
+                                    />
+                                  );
+                                })}
+                                {dayTasks.length > 4 && (
+                                  <span className="text-[7px] text-gray-400 font-bold leading-none ml-0.5">+</span>
+                                )}
+                              </div>
+                            )}
                           </button>
                         );
                       })}
