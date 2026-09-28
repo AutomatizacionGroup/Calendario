@@ -43,7 +43,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useRef } = React;
 
     // --- INITIAL SEED DATA WITH MULTIPLE CONTRACTORS & AUCTION TASKS ---
     const DEFAULT_USERS = [
@@ -135,6 +135,181 @@
         }
       ];
     };
+
+    // --- CUSTOM DATE PICKER DROPDOWN COMPONENT ---
+    function CustomDatePicker({ name = "dateStr", defaultValue, value, onChange, required = false }) {
+      const [selectedDateStr, setSelectedDateStr] = useState(() => {
+        return value || defaultValue || new Date().toISOString().split('T')[0];
+      });
+      const [isOpen, setIsOpen] = useState(false);
+      const [viewDate, setViewDate] = useState(() => {
+        const initial = value || defaultValue || new Date().toISOString().split('T')[0];
+        const parts = initial.split('-');
+        if (parts.length === 3) {
+          return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        }
+        return new Date();
+      });
+
+      const containerRef = useRef(null);
+
+      useEffect(() => {
+        if (value) {
+          setSelectedDateStr(value);
+          const parts = value.split('-');
+          if (parts.length === 3) {
+            setViewDate(new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
+          }
+        } else if (defaultValue) {
+          setSelectedDateStr(defaultValue);
+          const parts = defaultValue.split('-');
+          if (parts.length === 3) {
+            setViewDate(new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
+          }
+        }
+      }, [value, defaultValue]);
+
+      useEffect(() => {
+        const handleClickOutside = (e) => {
+          if (containerRef.current && !containerRef.current.contains(e.target)) {
+            setIsOpen(false);
+          }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+      }, []);
+
+      const handleSelectDate = (d) => {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const dateString = `${yyyy}-${mm}-${dd}`;
+        setSelectedDateStr(dateString);
+        if (onChange) onChange(dateString);
+        setIsOpen(false);
+      };
+
+      const getCalendarDays = () => {
+        const year = viewDate.getFullYear();
+        const month = viewDate.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const dayOfWeek = firstDay.getDay();
+        const startOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - startOffset);
+
+        return Array.from({ length: 35 }, (_, i) => {
+          const d = new Date(startDate);
+          d.setDate(d.getDate() + i);
+          return d;
+        });
+      };
+
+      const calendarDays = getCalendarDays();
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      const formatDisplayDate = (dStr) => {
+        if (!dStr) return '';
+        const parts = dStr.split('-');
+        if (parts.length !== 3) return dStr;
+        const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        return d.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+      };
+
+      return (
+        <div className="relative w-full" ref={containerRef}>
+          <input type="hidden" name={name} value={selectedDateStr} required={required} />
+          
+          <button
+            type="button"
+            onClick={() => setIsOpen(prev => !prev)}
+            className="w-full bg-gray-950 border border-gray-800 hover:border-emerald-500/70 rounded-xl px-2.5 py-1.5 text-xs text-gray-100 flex items-center justify-between transition-all cursor-pointer shadow-sm group focus:outline-none focus:border-emerald-500"
+          >
+            <span className="font-semibold text-gray-200 truncate capitalize">
+              {formatDisplayDate(selectedDateStr)}
+            </span>
+            <span className="text-gray-400 group-hover:text-emerald-400 text-xs ml-1 shrink-0">📅</span>
+          </button>
+
+          {isOpen && (
+            <div className="absolute left-0 mt-1.5 w-64 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl p-3 z-50 divide-y divide-gray-800/60 backdrop-blur-md">
+              <div className="pb-2.5 flex items-center justify-between text-xs font-bold text-gray-200">
+                <span className="capitalize">
+                  {viewDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+                </span>
+                <div className="flex items-center space-x-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date(viewDate);
+                      d.setMonth(d.getMonth() - 1);
+                      setViewDate(d);
+                    }}
+                    className="p-1 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800"
+                  >◄</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const today = new Date();
+                      setViewDate(today);
+                      handleSelectDate(today);
+                    }}
+                    className="px-1.5 py-0.5 text-[10px] text-indigo-400 hover:bg-indigo-950 rounded font-bold"
+                  >Hoy</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date(viewDate);
+                      d.setMonth(d.getMonth() + 1);
+                      setViewDate(d);
+                    }}
+                    className="p-1 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800"
+                  >►</button>
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <div className="grid grid-cols-7 text-[10px] font-bold text-gray-500 text-center mb-1">
+                  <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
+                </div>
+
+                <div className="grid grid-cols-7 gap-0.5 text-xs text-center">
+                  {calendarDays.map((d, idx) => {
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    const dStr = `${yyyy}-${mm}-${dd}`;
+
+                    const isSelected = dStr === selectedDateStr;
+                    const isToday = dStr === todayStr;
+                    const isCurrentMonth = d.getMonth() === viewDate.getMonth();
+
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleSelectDate(d)}
+                        className={`py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                          isSelected
+                            ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/40'
+                            : isToday
+                            ? 'bg-indigo-950 text-indigo-300 border border-indigo-700/80 font-bold'
+                            : isCurrentMonth
+                            ? 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                            : 'text-gray-600 hover:bg-gray-800/40'
+                        }`}
+                      >
+                        {d.getDate()}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
 
     // --- LOGIN SCREEN COMPONENT ---
     function LoginScreen({ users, onLogin, onRegister }) {
@@ -2746,7 +2921,7 @@
                   <div className="grid grid-cols-3 gap-2">
                     <div>
                       <label className="block text-xs font-semibold text-gray-300 mb-1">Fecha</label>
-                      <input name="dateStr" type="date" required defaultValue={newTaskDefaults.dateStr || new Date().toISOString().split('T')[0]} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-2 py-1.5 text-xs text-gray-100" />
+                      <CustomDatePicker name="dateStr" defaultValue={newTaskDefaults.dateStr || new Date().toISOString().split('T')[0]} required />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-300 mb-1">Hora Inicio</label>
