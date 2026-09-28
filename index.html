@@ -311,6 +311,163 @@
       );
     }
 
+    // --- CUSTOM TIME PICKER DROPDOWN COMPONENT ---
+    function CustomTimePicker({ name, defaultValue = "09:00", value, onChange, required = false }) {
+      const [selectedTime, setSelectedTime] = useState(() => value || defaultValue || "09:00");
+      const [isOpen, setIsOpen] = useState(false);
+      const containerRef = useRef(null);
+
+      useEffect(() => {
+        if (value) setSelectedTime(value);
+        else if (defaultValue) setSelectedTime(defaultValue);
+      }, [value, defaultValue]);
+
+      useEffect(() => {
+        const handleClickOutside = (e) => {
+          if (containerRef.current && !containerRef.current.contains(e.target)) {
+            setIsOpen(false);
+          }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+      }, []);
+
+      const format12Hour = (time24) => {
+        if (!time24) return "09:00 AM";
+        const [hStr, mStr] = time24.split(':');
+        let h = parseInt(hStr, 10);
+        const m = mStr || "00";
+        if (isNaN(h)) return time24;
+        const period = h >= 12 ? 'PM' : 'AM';
+        h = h % 12;
+        if (h === 0) h = 12;
+        const displayH = String(h).padStart(2, '0');
+        return `${displayH}:${m} ${period}`;
+      };
+
+      const handleSelectTime = (time24Str) => {
+        setSelectedTime(time24Str);
+        if (onChange) onChange(time24Str);
+        setIsOpen(false);
+      };
+
+      const popularTimes = [];
+      for (let h = 8; h <= 20; h++) {
+        const h24_1 = String(h).padStart(2, '0');
+        popularTimes.push(`${h24_1}:00`);
+        if (h < 20) {
+          popularTimes.push(`${h24_1}:30`);
+        }
+      }
+
+      const [currHStr, currMStr] = (selectedTime || "09:00").split(':');
+      const currH = parseInt(currHStr || "9", 10);
+      const currM = parseInt(currMStr || "0", 10);
+
+      const isPM = currH >= 12;
+      const h12 = currH % 12 === 0 ? 12 : currH % 12;
+
+      const setHourMinute = (newH12, newM, newIsPM) => {
+        let h24 = newH12 % 12;
+        if (newIsPM) h24 += 12;
+        const hStr = String(h24).padStart(2, '0');
+        const mStr = String(newM).padStart(2, '0');
+        handleSelectTime(`${hStr}:${mStr}`);
+      };
+
+      return (
+        <div className="relative w-full" ref={containerRef}>
+          <input type="hidden" name={name} value={selectedTime} required={required} />
+
+          <button
+            type="button"
+            onClick={() => setIsOpen(prev => !prev)}
+            className="w-full bg-gray-950 border border-gray-800 hover:border-emerald-500/70 rounded-xl px-2.5 py-1.5 text-xs text-gray-100 flex items-center justify-between transition-all cursor-pointer shadow-sm group focus:outline-none focus:border-emerald-500"
+          >
+            <span className="font-semibold text-gray-200 truncate font-mono">
+              {format12Hour(selectedTime)}
+            </span>
+            <span className="text-gray-400 group-hover:text-emerald-400 text-xs ml-1 shrink-0">🕒</span>
+          </button>
+
+          {isOpen && (
+            <div className="absolute left-0 mt-1.5 w-60 bg-gray-900 border border-gray-800 rounded-2xl shadow-2xl p-3 z-50 divide-y divide-gray-800/60 backdrop-blur-md">
+              <div className="pb-2.5 space-y-2">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 text-center">
+                  Seleccionar Horario Exacto
+                </div>
+                <div className="flex items-center justify-center space-x-1.5">
+                  <select
+                    value={h12}
+                    onChange={(e) => setHourMinute(parseInt(e.target.value, 10), currM, isPM)}
+                    className="bg-gray-950 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white font-bold font-mono focus:border-emerald-500 focus:outline-none cursor-pointer"
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map(num => (
+                      <option key={num} value={num}>{String(num).padStart(2, '0')}</option>
+                    ))}
+                  </select>
+
+                  <span className="text-gray-400 font-bold">:</span>
+
+                  <select
+                    value={currM}
+                    onChange={(e) => setHourMinute(h12, parseInt(e.target.value, 10), isPM)}
+                    className="bg-gray-950 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white font-bold font-mono focus:border-emerald-500 focus:outline-none cursor-pointer"
+                  >
+                    {[0, 15, 30, 45].map(min => (
+                      <option key={min} value={min}>{String(min).padStart(2, '0')}</option>
+                    ))}
+                  </select>
+
+                  <div className="flex bg-gray-950 p-0.5 rounded-lg border border-gray-700 text-[10px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setHourMinute(h12, currM, false)}
+                      className={`px-1.5 py-0.5 rounded ${!isPM ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                    >
+                      AM
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHourMinute(h12, currM, true)}
+                      className={`px-1.5 py-0.5 rounded ${isPM ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                    >
+                      PM
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 space-y-1">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                  Horarios Frecuentes
+                </div>
+                <div className="grid grid-cols-3 gap-1 max-h-40 overflow-y-auto pr-1">
+                  {popularTimes.map(t24 => {
+                    const isSelected = t24 === selectedTime;
+                    return (
+                      <button
+                        key={t24}
+                        type="button"
+                        onClick={() => handleSelectTime(t24)}
+                        className={`py-1 px-1 rounded-lg text-[10px] font-mono font-medium transition-all ${
+                          isSelected
+                            ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/40'
+                            : 'bg-gray-950 text-gray-300 hover:bg-gray-800 hover:text-white border border-gray-800/80'
+                        }`}
+                      >
+                        {format12Hour(t24)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     // --- LOGIN SCREEN COMPONENT ---
     function LoginScreen({ users, onLogin, onRegister }) {
       const [activeTab, setActiveTab] = useState('CREDENTIALS'); // 'CREDENTIALS' | 'REGISTER'
@@ -2925,11 +3082,11 @@
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-300 mb-1">Hora Inicio</label>
-                      <input name="startTimeStr" type="time" required defaultValue={newTaskDefaults.startTimeStr || '09:00'} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-2 py-1.5 text-xs text-gray-100" />
+                      <CustomTimePicker name="startTimeStr" defaultValue={newTaskDefaults.startTimeStr || '09:00'} required />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-300 mb-1">Hora Fin</label>
-                      <input name="endTimeStr" type="time" required defaultValue={newTaskDefaults.endTimeStr || '11:00'} className="w-full bg-gray-950 border border-gray-800 rounded-xl px-2 py-1.5 text-xs text-gray-100" />
+                      <CustomTimePicker name="endTimeStr" defaultValue={newTaskDefaults.endTimeStr || '11:00'} required />
                     </div>
                   </div>
 
