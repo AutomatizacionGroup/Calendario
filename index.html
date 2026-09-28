@@ -47,7 +47,7 @@
 
     // --- INITIAL SEED DATA WITH MULTIPLE CONTRACTORS & AUCTION TASKS ---
     const DEFAULT_USERS = [
-      { id: 'usr-1', name: 'Ing. Carlos Mendoza (Jefe)', username: 'carlos.mendoza', email: 'jefe@empresa.com', phone: '+525551234567', role: 'BOSS', status: 'ACTIVE' }
+      { id: 'usr-1', name: 'Ing. Carlos Mendoza (Jefe)', username: 'carlos.mendoza', email: 'jefe@empresa.com', phone: '+525551234567', role: 'BOSS', status: 'ACTIVE', password: '123456' }
     ];
 
     const DEFAULT_PROJECTS = [
@@ -509,6 +509,13 @@
 
         if (!target) {
           setErrorMsg(`❌ No se encontró ningún usuario o correo registrado que coincida con '${userOrEmailInput}'. Verifica tus datos de acceso.`);
+          return;
+        }
+
+        // Validación estricta de Contraseña
+        const expectedPassword = target.password || '123456';
+        if (!password || password !== expectedPassword) {
+          setErrorMsg('❌ Contraseña incorrecta. Por favor verifica tu clave e intenta de nuevo.');
           return;
         }
 
