@@ -497,18 +497,16 @@
           return;
         }
 
+        const queryClean = userOrEmailInput.trim().toLowerCase().replace(/^@/, '');
+
         const target = users.find(u => 
-          u.email.toLowerCase() === query || 
-          (u.username && u.username.toLowerCase() === query) ||
-          u.name.toLowerCase() === query ||
-          u.id.toLowerCase() === query ||
-          u.email.toLowerCase().includes(query) ||
-          (u.username && u.username.toLowerCase().includes(query)) ||
-          u.name.toLowerCase().includes(query)
+          u.email.toLowerCase() === queryClean || 
+          (u.username && u.username.toLowerCase() === queryClean) ||
+          u.id.toLowerCase() === queryClean
         );
 
         if (!target) {
-          setErrorMsg(`❌ No se encontró ningún usuario o correo registrado que coincida con '${userOrEmailInput}'. Verifica tus datos de acceso.`);
+          setErrorMsg(`❌ No existe ningún usuario registrado con el correo o usuario '${userOrEmailInput}'. Verifica tus datos de acceso.`);
           return;
         }
 
