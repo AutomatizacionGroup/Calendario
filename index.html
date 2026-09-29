@@ -4147,15 +4147,15 @@
                                         return (
                                           <div
                                             key={task.id}
-                                            className={`p-3 rounded-xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-all ${
+                                            className={`p-3.5 rounded-2xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
                                               isDone
-                                                ? 'bg-emerald-950/20 border-emerald-900/50 text-emerald-100 shadow-sm'
-                                                : 'bg-gray-900 border-gray-800 text-gray-200'
+                                                ? 'bg-emerald-950/30 border-emerald-800/60 text-emerald-100 shadow-md'
+                                                : 'bg-gray-900 border-gray-800 text-gray-200 hover:border-gray-700'
                                             }`}
                                           >
-                                            <div className="space-y-1 flex-1">
-                                              <div className="flex items-center space-x-2">
-                                                <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                                            <div className="space-y-1.5 flex-1">
+                                              <div className="flex flex-wrap items-center gap-2">
+                                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
                                                   isDone
                                                     ? 'bg-emerald-950 text-emerald-300 border border-emerald-700/80'
                                                     : (task.status === 'IN_PROGRESS'
@@ -4167,26 +4167,62 @@
                                                 <h6 className="font-extrabold text-white text-xs tracking-tight">{task.title}</h6>
                                               </div>
 
-                                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-400 mt-1">
+                                              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-400">
                                                 <span>⏰ {new Date(task.startTime).toLocaleDateString('es-ES')} ({new Date(task.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} - {new Date(task.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })})</span>
-                                                 {task.location && (
-                                                   <a
-                                                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(task.location)}`}
-                                                     target="_blank"
-                                                     rel="noopener noreferrer"
-                                                     className="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 underline"
-                                                   >
-                                                     📍 {task.location} 🗺️
-                                                   </a>
-                                                 )}
+                                                {task.location && (
+                                                  <a
+                                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(task.location)}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 underline"
+                                                  >
+                                                    📍 {task.location} 🗺️
+                                                  </a>
+                                                )}
                                                 <span>👤 Realizado/Asignado: <strong className="text-gray-200 font-semibold">{assignedUsers.map(u => u.name).join(', ') || 'Sin Asignar'}</strong></span>
                                               </div>
 
                                               {task.description && (
-                                                <p className="text-[11px] text-gray-300 bg-gray-950/70 p-2 rounded-lg border border-gray-800/80 mt-1.5 italic">
+                                                <p className="text-[11px] text-gray-300 bg-gray-950/70 p-2 rounded-lg border border-gray-800/80 italic">
                                                   "{task.description}"
                                                 </p>
                                               )}
+                                            </div>
+
+                                            {/* Botones de Acción Directa: Completar Tarea */}
+                                            <div className="flex items-center space-x-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-800/60 justify-end">
+                                              {isDone ? (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleUpdateTaskStatus(task.id, 'PENDING')}
+                                                  className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center space-x-1"
+                                                  title="Reabrir o marcar como pendiente"
+                                                >
+                                                  <span>↩️ Reabrir Tarea</span>
+                                                </button>
+                                              ) : (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleUpdateTaskStatus(task.id, 'COMPLETED')}
+                                                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center space-x-1.5"
+                                                  title="Marcar como realizada / completada"
+                                                >
+                                                  <span>✓</span>
+                                                  <span>Marcar Realizada</span>
+                                                </button>
+                                              )}
+
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setSelectedTask(task);
+                                                  setIsProjectsModalOpen(false);
+                                                }}
+                                                className="px-2.5 py-1.5 bg-gray-950 hover:bg-gray-800 text-gray-300 border border-gray-800 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                                                title="Ver detalle completo"
+                                              >
+                                                <span>🔍 Ver</span>
+                                              </button>
                                             </div>
                                           </div>
                                         );
