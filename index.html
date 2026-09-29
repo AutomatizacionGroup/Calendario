@@ -770,22 +770,15 @@
                   </div>
                 ) : regStep === 'VERIFY_EMAIL' ? (
                   <form onSubmit={handleConfirmCodeAndRegister} className="space-y-4">
-                    {/* Alerta de Simulación Local del Correo Enviado */}
+                    {/* Notificación de Correo Enviado */}
                     {simulatedEmailNotice && (
-                      <div className="p-3 bg-cyan-950/90 border border-cyan-700/80 rounded-2xl text-cyan-200 text-xs space-y-1">
-                        <div className="flex items-center justify-between font-bold text-cyan-300 text-[11px]">
-                          <span>📧 [CORREO SIMULADO LOCAL ENVIADO]</span>
-                          <span className="text-gray-400">{simulatedEmailNotice.sentAt}</span>
+                      <div className="p-3.5 bg-emerald-950/40 border border-emerald-700/60 rounded-2xl text-emerald-200 text-xs space-y-1.5 shadow-md">
+                        <div className="flex items-center space-x-2 font-bold text-emerald-300 text-xs">
+                          <span>📩 Correo de Verificación Enviado</span>
                         </div>
-                        <p className="text-gray-300 text-[11px]">
-                          Para: <strong className="text-white">{simulatedEmailNotice.to}</strong>
+                        <p className="text-gray-300 text-[11px] leading-relaxed">
+                          Hemos enviado un código de 6 dígitos al correo <strong className="text-white">{simulatedEmailNotice.to}</strong>. Por favor revisa tu bandeja de entrada o carpeta de correo no deseado (spam) e ingresa el código a continuación.
                         </p>
-                        <div className="mt-1 p-2 bg-gray-950 border border-cyan-800/60 rounded-xl text-center">
-                          <span className="text-xs text-gray-400 block mb-0.5">Tu Código de Verificación de 6 dígitos:</span>
-                          <span className="text-lg font-black tracking-widest text-emerald-400 bg-emerald-950/80 px-3 py-1 rounded-lg inline-block border border-emerald-700">
-                            {simulatedEmailNotice.code}
-                          </span>
-                        </div>
                       </div>
                     )}
 
