@@ -22,6 +22,7 @@ export async function sendEmail(params: SendEmailParams) {
   const smtpPass = process.env.SMTP_PASS;
   const smtpFrom = process.env.SMTP_FROM || (smtpUser ? `"Calendario" <${smtpUser}>` : '"Calendario Empresarial" <no-reply@empresa.com>');
   const resendApiKey = process.env.RESEND_API_KEY;
+  const resendFrom = process.env.RESEND_FROM || 'onboarding@resend.dev';
 
   // Opción 1: Resend API si está configurado en .env
   if (resendApiKey) {
@@ -33,7 +34,7 @@ export async function sendEmail(params: SendEmailParams) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: smtpFrom,
+          from: resendFrom,
           to: toEmail,
           subject: subject,
           text: body,
