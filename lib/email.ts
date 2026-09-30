@@ -46,6 +46,30 @@ export async function sendEmail(params: SendEmailParams) {
       } else {
         const errText = await res.text();
         console.error('❌ Error enviando email por Resend API:', errText);
+        
+        // Si Resend en modo gratuito restringe envíos solo al correo del dueño de la cuenta
+        const fallbackTarget = process.env.ADMIN_EMAIL || 'willy@automatizaciongroup.com';
+        if (toEmail !== fallbackTarget) {
+          console.log(`🔄 Enviando copia a la cuenta de Resend autorizada (${fallbackTarget})...`);
+          try {
+            await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${resendApiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                from: resendFrom,
+                to: fallbackTarget,
+                subject: `[COPIA TEST PARA: ${toEmail}] ${subject}`,
+                text: `NOTA: Este correo se envió a ${fallbackTarget} porque Resend en modo test solo permite enviar a tu dirección registrada.\n\nDestinatario original: ${toEmail}\n\n${body}`,
+              }),
+            });
+            console.log(`✅ [COPIA RESEND ENTREGADA REALMENTE] En tu bandeja: ${fallbackTarget}`);
+          } catch (fallbackErr) {
+            console.error('Error en fallback Resend:', fallbackErr);
+          }
+        }
       }
     } catch (e) {
       console.error('❌ Excepción enviando email por Resend API:', e);

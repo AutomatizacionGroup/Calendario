@@ -600,10 +600,35 @@
         };
         setSimulatedEmailNotice(notice);
         setIsMailboxOpen(true);
-        console.log('================ [ SIMULACIÓN DE CORREO LOCAL ENVIADO ] ================');
-        console.log(`PARA: ${regEmail.trim()}`);
-        console.log(`CÓDIGO DE VERIFICACIÓN: ${code}`);
-        console.log('======================================================================');
+
+        // Envío de correo real usando la API o backend si está disponible
+        const RESEND_KEY = typeof window !== 'undefined' ? (window.RESEND_API_KEY || localStorage.getItem('RESEND_API_KEY')) : null;
+        if (RESEND_KEY) {
+          fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${RESEND_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              from: 'onboarding@resend.dev',
+              to: regEmail.trim(),
+              subject: '🔐 Código de Verificación de Correo - Calendario Empresarial',
+              text: `Hola ${regName.trim()},\n\nTu código de verificación de 6 dígitos para validar tu correo electrónico es: ${code}\n\nIngresa este código en la aplicación para completar tu registro.`
+            })
+          })
+          .then(async res => {
+            const data = await res.json();
+            if (res.ok) {
+              console.log('✅ Correo real enviado exitosamente a tu inbox por Resend:', data);
+            } else {
+              console.warn('⚠️ Notificación Resend:', data);
+            }
+          })
+          .catch(err => {
+            console.error('Error enviando correo por Resend API:', err);
+          });
+        }
       };
 
       const handleConfirmCodeAndRegister = (e) => {
@@ -632,11 +657,23 @@
         setRegStep('SUCCESS');
         setRegSuccess(true);
 
-        console.log('================ [ NOTIFICACIÓN AL ADMINISTRADOR ENVIADA ] ================');
-        console.log('PARA: jefe@empresa.com');
-        console.log(`ASUNTO: 🔔 NUEVA SOLICITUD DE REGISTRO PENDIENTE DE APROBACIÓN`);
-        console.log(`DETALLES: Usuario ${newUser.name} (${newUser.email}) con correo verificado.`);
-        console.log('========================================================================');
+        // Notificación por correo al Administrador vía Resend (si la API key existe en memoria)
+        const RESEND_KEY = typeof window !== 'undefined' ? (window.RESEND_API_KEY || localStorage.getItem('RESEND_API_KEY')) : null;
+        if (RESEND_KEY) {
+          fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${RESEND_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              from: 'onboarding@resend.dev',
+              to: 'willinger2002@gmail.com',
+              subject: '🔔 NUEVA SOLICITUD DE REGISTRO PENDIENTE DE APROBACIÓN',
+              text: `Estimado Administrador,\n\nSe ha recibido un nuevo registro de usuario verificado:\n- Nombre: ${newUser.name}\n- Correo: ${newUser.email}\n- Teléfono: ${newUser.phone}\n\nIngresa al sistema para validar y asignar el rol.`
+            })
+          }).catch(err => console.error('Error enviando mail al admin:', err));
+        }
       };
 
       return (
