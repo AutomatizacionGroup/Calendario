@@ -50,53 +50,13 @@ export default function LoginPage() {
     }
   };
 
-  const handleSendCode = async (e: React.FormEvent) => {
+  const handleDirectRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     setInfoMsg('');
 
     try {
-      const res = await fetch('/api/auth/send-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, name }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Error al enviar código de verificación');
-      }
-
-      setExpectedCode(data.code);
-      setInfoMsg(`📩 Hemos enviado un código de verificación de 6 dígitos a ${email}. Revisa tu bandeja de entrada o carpeta de spam e ingrésalo a continuación.`);
-      setRegStep('VERIFY_CODE');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyAndRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      // 1. Verificar Código
-      const verifyRes = await fetch('/api/auth/verify-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inputCode: verificationCodeInput, expectedCode }),
-      });
-
-      const verifyData = await verifyRes.json();
-      if (!verifyRes.ok) {
-        throw new Error(verifyData.error || 'Código incorrecto');
-      }
-
-      // 2. Registrar usuario verificado y enviar notificación al Admin
       const regRes = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -108,9 +68,8 @@ export default function LoginPage() {
         throw new Error(regData.error || 'Error al registrar usuario');
       }
 
-      setRegStep('FORM');
       setIsRegister(false);
-      setInfoMsg('¡Correo verificado con éxito! Tu solicitud ha sido registrada y notificada al Administrador por correo.');
+      setInfoMsg('🎉 ¡Solicitud de registro enviada con éxito! Tu cuenta está pendiente de aprobación por el Administrador/Jefe.');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -192,136 +151,99 @@ export default function LoginPage() {
             </div>
           )}
 
-          {isRegister && regStep === 'VERIFY_CODE' ? (
-            <form onSubmit={handleVerifyAndRegister} className="space-y-4">
+          <form onSubmit={isRegister ? handleDirectRegister : handleLogin} className="space-y-4">
+            {isRegister && (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Nombre Completo Real</label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ej. Roberto Gómez"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
 
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Teléfono (con WhatsApp)</label>
+                  <div className="relative">
+                    <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="+52 555 123 4567"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1 text-center">
-                  Código de Verificación (6 dígitos)
-                </label>
+                <div>
+                  <label className="block text-xs font-medium text-slate-300 mb-1">Rol Solicitado</label>
+                  <select
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as any)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                  >
+                    <option value="EMPLOYEE">Empleado Interno</option>
+                    <option value="THIRD_PARTY">Contratista / Tercero</option>
+                    <option value="BOSS">Jefe / Administrador</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Correo Electrónico Real</label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
                 <input
-                  type="text"
-                  maxLength={6}
+                  type="email"
                   required
-                  placeholder="123456"
-                  value={verificationCodeInput}
-                  onChange={(e) => setVerificationCodeInput(e.target.value.replace(/\D/g, ''))}
-                  className="w-full bg-slate-950 border border-indigo-500 rounded-xl text-center font-mono text-lg py-2.5 text-slate-100 placeholder-slate-600 focus:outline-none tracking-widest"
+                  placeholder="usuario@empresa.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
                 />
               </div>
+            </div>
 
-              <div className="flex space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setRegStep('FORM')}
-                  className="w-1/3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs"
-                >
-                  Volver
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-2/3 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs shadow-lg shadow-emerald-600/30"
-                >
-                  {loading ? 'Verificando...' : '✓ Verificar y Registrar'}
-                </button>
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">Contraseña</label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                />
               </div>
-            </form>
-          ) : (
-            <form onSubmit={isRegister ? handleSendCode : handleLogin} className="space-y-4">
-              {isRegister && (
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full mt-2 flex items-center justify-center py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all text-sm group"
+            >
+              {loading ? (
+                <span>Procesando...</span>
+              ) : (
                 <>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">Nombre Completo Real</label>
-                    <div className="relative">
-                      <User className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-                      <input
-                        type="text"
-                        required
-                        placeholder="Ej. Roberto Gómez"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">Teléfono (con WhatsApp)</label>
-                    <div className="relative">
-                      <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-                      <input
-                        type="text"
-                        required
-                        placeholder="+52 555 123 4567"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">Rol Solicitado</label>
-                    <select
-                      value={role}
-                      onChange={(e) => setRole(e.target.value as any)}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
-                    >
-                      <option value="EMPLOYEE">Empleado Interno</option>
-                      <option value="THIRD_PARTY">Contratista / Tercero</option>
-                      <option value="BOSS">Jefe / Administrador</option>
-                    </select>
-                  </div>
+                  <span>{isRegister ? 'Enviar Solicitud de Registro ✨' : 'Entrar a la Plataforma'}</span>
+                  <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Correo Electrónico Real</label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-                  <input
-                    type="email"
-                    required
-                    placeholder="usuario@empresa.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Contraseña</label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full mt-2 flex items-center justify-center py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/30 transition-all text-sm group"
-              >
-                {loading ? (
-                  <span>Procesando...</span>
-                ) : (
-                  <>
-                    <span>{isRegister ? 'Solicitar Código de Verificación 📩' : 'Entrar a la Plataforma'}</span>
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            </form>
+            </button>
+          </form>
           )}
 
           {/* Quick Logins for Demo */}
