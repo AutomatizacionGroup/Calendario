@@ -45,6 +45,27 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
+    function formatWhatsAppPhone(phone) {
+      if (!phone) return '';
+      let cleaned = String(phone).replace(/[^0-9]/g, '');
+      if (!cleaned) return '';
+
+      // Formato local de Venezuela: 0412..., 0414..., 0424..., 0416..., 0426... -> 584...
+      if (/^04[12][246]/.test(cleaned) || /^04\d{8,9}$/.test(cleaned)) {
+        cleaned = '58' + cleaned.substring(1);
+      }
+      // Formato de 10 dígitos sin el '0' inicial (ej. 4125594984), anteponer '58'
+      else if (cleaned.length === 10 && /^4[12][246]/.test(cleaned)) {
+        cleaned = '58' + cleaned;
+      }
+      // Formato que empieza con ceros iniciales
+      else if (cleaned.startsWith('0')) {
+        cleaned = cleaned.replace(/^0+/, '');
+      }
+
+      return cleaned;
+    }
+
     // --- INITIAL SEED DATA WITH MULTIPLE CONTRACTORS & AUCTION TASKS ---
     const DEFAULT_USERS = [
       { id: 'usr-1', name: 'Ing. Carlos Mendoza (Jefe)', username: 'carlos.mendoza', email: 'jefe@empresa.com', phone: '+525551234567', role: 'BOSS', status: 'ACTIVE', password: '123456' }
@@ -1947,9 +1968,9 @@
                 const mapsUrlFinal = getTaskMapsUrl(newTask);
                 const msg = `NUEVA ASIGNACIÓN DE TRABAJO\n\nHola ${targetUser.name}, ${currentUser.name} te ha asignado al trabajo:\nTrabajo: ${newTask.title}\nFecha: ${formattedDate}\nHorario: ${startTimeStr} - ${endTimeStr}\n${otherNames ? `Participantes: ${targetUser.name}, ${otherNames}\n` : ''}${location ? `Ubicación: ${location}\n` : ''}${mapsUrlFinal ? `🗺️ Mapa: ${mapsUrlFinal}\n` : ''}${description ? `Detalles: ${description}\n` : ''}\nNota: Horario reservado en tu agenda.`;
 
-                const cleanPhone = (targetUser.phone || '').replace(/[^0-9]/g, '');
+                const cleanPhone = formatWhatsAppPhone(targetUser.phone);
                 const waUrl = cleanPhone
-                  ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`
+                  ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`
                   : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
 
                 const logEntry = {
@@ -3337,13 +3358,13 @@
                       </p>
                       <div className="space-y-1.5">
                         {getTaskAssignedUsers(selectedTask, users).map(u => {
-                          const cleanPhone = (u.phone || '').replace(/[^0-9]/g, '');
+                          const cleanPhone = formatWhatsAppPhone(u.phone);
                           const taskDate = new Date(selectedTask.startTime).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
                           const startH = new Date(selectedTask.startTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
                           const endH = new Date(selectedTask.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
                           const mapsUrl = selectedTask.location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedTask.location)}` : '';
                           const msgText = `NOTIFICACIÓN DE TRABAJO\nHola ${u.name}, recordatorio del trabajo:\nTrabajo: ${selectedTask.title}\nFecha: ${taskDate}\nHorario: ${startH} - ${endH}\n${selectedTask.location ? `Ubicación: ${selectedTask.location}\n🗺️ Mapa: ${mapsUrl}\n` : ''}${selectedTask.description ? `Detalles: ${selectedTask.description}\n` : ''}`;
-                          const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgText)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(msgText)}`;
+                          const waUrl = cleanPhone ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msgText)}` : `https://api.whatsapp.com/send?text=${encodeURIComponent(msgText)}`;
 
                           return (
                             <div key={u.id} className="flex justify-between items-center bg-gray-900 border border-gray-800 p-2.5 rounded-xl text-xs gap-2">
@@ -3685,9 +3706,9 @@
                       </div>
                     ) : (
                       paginatedLogs.map(log => {
-                        const cleanPhone = (log.recipientPhone || '').replace(/[^0-9]/g, '');
-                        const waUrl = log.waUrl || (cleanPhone
-                          ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(log.message)}`
+                        const cleanPhone = formatWhatsAppPhone(log.recipientPhone);
+                        const waUrl = (cleanPhone
+                          ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(log.message)}`
                           : `https://api.whatsapp.com/send?text=${encodeURIComponent(log.message)}`);
                         const hasMapsLink = log.message.includes('https://') || log.message.includes('google.com/maps');
 

@@ -12,6 +12,27 @@ export interface SendWhatsAppParams {
   assignedByName?: string;
 }
 
+export function formatWhatsAppPhone(phone: string): string {
+  if (!phone) return '';
+  let cleaned = phone.replace(/[^0-9]/g, '');
+  if (!cleaned) return '';
+
+  // Formato local de Venezuela: 0412..., 0414..., 0424..., 0416..., 0426... -> 584...
+  if (/^04[12][246]/.test(cleaned) || /^04\d{8,9}$/.test(cleaned)) {
+    cleaned = '58' + cleaned.substring(1);
+  }
+  // Formato de 10 dígitos sin el '0' inicial (ej. 4125594984), anteponer '58'
+  else if (cleaned.length === 10 && /^4[12][246]/.test(cleaned)) {
+    cleaned = '58' + cleaned;
+  }
+  // Formato que empieza con 0, remover ceros iniciales
+  else if (cleaned.startsWith('0')) {
+    cleaned = cleaned.replace(/^0+/, '');
+  }
+
+  return cleaned;
+}
+
 export async function sendWhatsAppNotification(params: SendWhatsAppParams) {
   const {
     taskId,
@@ -52,6 +73,11 @@ Hola *${recipientName}*, ${assignedByName ? `*${assignedByName}*` : 'se'} te ha 
 ${location ? `📍 *Ubicación:* ${location}\n` : ''}${description ? `📝 *Detalles:* ${description}\n` : ''}
 ⚠️ *Nota:* Este horario ha sido bloqueado en tu itinerario de trabajo.`;
 
+  const cleanPhone = formatWhatsAppPhone(recipientPhone);
+  const directUrl = cleanPhone
+    ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(messageText)}`
+    : `https://api.whatsapp.com/send?text=${encodeURIComponent(messageText)}`;
+
   const mode = process.env.WHATSAPP_MODE || 'SIMULATION';
 
   try {
@@ -67,7 +93,7 @@ ${location ? `📍 *Ubicación:* ${location}\n` : ''}${description ? `📝 *Deta
           },
           body: JSON.stringify({
             messaging_product: 'whatsapp',
-            to: recipientPhone.replace(/\D/g, ''),
+            to: cleanPhone,
             type: 'text',
             text: { body: messageText },
           }),
@@ -76,7 +102,7 @@ ${location ? `📍 *Ubicación:* ${location}\n` : ''}${description ? `📝 *Deta
 
       const status = res.ok ? 'SENT' : 'FAILED';
 
-      return await prisma.whatsAppLog.create({
+      const log = await prisma.whatsAppLog.create({
         data: {
           taskId,
           recipientPhone,
@@ -85,15 +111,17 @@ ${location ? `📍 *Ubicación:* ${location}\n` : ''}${description ? `📝 *Deta
           status,
         },
       });
+      return { ...log, directUrl };
     }
 
     // Modo por defecto SIMULACIÓN
     console.log('\n================ [ WHATSAPP NOTIFICATION LOG ] ================');
-    console.log(`PARA: ${recipientName} (${recipientPhone})`);
+    console.log(`PARA: ${recipientName} (${recipientPhone}) -> ${cleanPhone}`);
+    console.log(`URL DIRECTA: ${directUrl}`);
     console.log(`MENSAJE:\n${messageText}`);
     console.log('===============================================================\n');
 
-    return await prisma.whatsAppLog.create({
+    const log = await prisma.whatsAppLog.create({
       data: {
         taskId,
         recipientPhone,
@@ -102,9 +130,10 @@ ${location ? `📍 *Ubicación:* ${location}\n` : ''}${description ? `📝 *Deta
         status: 'SIMULATED',
       },
     });
+    return { ...log, directUrl };
   } catch (error) {
     console.error('Error al registrar/enviar mensaje de WhatsApp:', error);
-    return await prisma.whatsAppLog.create({
+    const log = await prisma.whatsAppLog.create({
       data: {
         taskId,
         recipientPhone,
@@ -113,5 +142,6 @@ ${location ? `📍 *Ubicación:* ${location}\n` : ''}${description ? `📝 *Deta
         status: 'FAILED',
       },
     });
+    return { ...log, directUrl };
   }
 }
