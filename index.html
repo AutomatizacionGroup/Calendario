@@ -3535,10 +3535,10 @@
                                     style={{ top: `${topPx}px`, height: `${heightPx}px`, left: layout.left, width: layout.width }}
                                     title="Clic para ver detalles o arrastra para cambiar de día/hora"
                                     className={`absolute p-2.5 rounded-xl border text-xs cursor-grab active:cursor-grabbing shadow-lg transition-all hover:scale-[1.02] hover:z-20 flex flex-col justify-between overflow-hidden ${
-                                      isOpenAuction
+                                      t.status === 'COMPLETED'
+                                        ? 'bg-gradient-to-br from-emerald-950 via-emerald-900/95 to-emerald-950 border-emerald-400 text-emerald-100 shadow-emerald-900/50'
+                                        : isOpenAuction
                                         ? 'bg-gradient-to-br from-amber-950 via-amber-900 to-amber-950 border-amber-400 text-amber-100 shadow-amber-900/50 animate-pulse'
-                                        : t.status === 'COMPLETED'
-                                        ? 'bg-emerald-950/90 border-emerald-600/80 text-emerald-100'
                                         : t.isPersonal
                                         ? 'bg-purple-950/90 border-purple-600/80 text-purple-100'
                                         : hasContractor
@@ -3548,8 +3548,12 @@
                                   >
                                     <div>
                                       <div className="flex items-start justify-between font-bold text-[11px] leading-tight mb-0.5">
-                                        <span className="truncate">{t.recurrenceLabel ? `🔄 ${t.title}` : t.title}</span>
-                                        {isOpenAuction ? (
+                                        <span className={`truncate ${t.status === 'COMPLETED' ? 'text-emerald-200' : ''}`}>
+                                          {t.status === 'COMPLETED' ? `✅ ${t.title}` : (t.recurrenceLabel ? `🔄 ${t.title}` : t.title)}
+                                        </span>
+                                        {t.status === 'COMPLETED' ? (
+                                          <span className="bg-emerald-500 text-gray-950 font-black text-[9px] px-1 rounded shadow shrink-0 ml-1">✓ LISTO</span>
+                                        ) : isOpenAuction ? (
                                           <span className="bg-amber-400 text-gray-950 font-black text-[9px] px-1 rounded shadow">⚡ SUBASTA</span>
                                         ) : (
                                           <span className="text-red-400 shrink-0 ml-1">🔒</span>
@@ -3572,7 +3576,7 @@
                                         )}
                                       </div>
                                       <p className="text-[10px] font-bold truncate">
-                                        {isOpenAuction
+                                        {isOpenAuction && t.status !== 'COMPLETED'
                                           ? '⚡ ¡RECLAMAR AHORA!'
                                           : assignedUsers.length > 1
                                           ? `👥 ${assignedUsers.map(u => u.name.split(' ')[0]).join(', ')}`
@@ -3581,7 +3585,11 @@
                                     </div>
                                     <div className="pt-1 border-t border-gray-700/60 flex items-center justify-between text-[9px] font-mono">
                                       <span>{start.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} - {end.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
-                                      <span className="px-1.5 py-0.2 rounded-full font-bold bg-gray-900/80">{isOpenAuction ? 'LIBRE' : t.status}</span>
+                                      <span className={`px-1.5 py-0.2 rounded-full font-bold ${
+                                        t.status === 'COMPLETED' ? 'bg-emerald-600 text-white' : 'bg-gray-900/80'
+                                      }`}>
+                                        {t.status === 'COMPLETED' ? 'COMPLETADO' : isOpenAuction ? 'LIBRE' : t.status}
+                                      </span>
                                     </div>
                                   </div>
                                 );
@@ -3624,24 +3632,36 @@
                               {hourTasks.map(t => {
                                 const assignedUsers = getTaskAssignedUsers(t, users);
                                 const isOpenAuction = t.status === 'OPEN_AUCTION' || assignedUsers.length === 0;
+                                const isCompleted = t.status === 'COMPLETED';
+                                const hasContractor = assignedUsers.some(u => u.role === 'THIRD_PARTY');
 
                                 return (
                                   <div
                                     key={t.id}
-                                    draggable={t.status !== 'COMPLETED'}
+                                    draggable={!isCompleted}
                                     onDragStart={(e) => {
                                       e.stopPropagation();
                                       setDraggedTaskId(t.id);
                                     }}
                                     onDragEnd={() => setDraggedTaskId(null)}
                                     onClick={(e) => { e.stopPropagation(); setSelectedTask(t); }}
-                                    className={`p-3 border rounded-xl flex justify-between items-center shadow cursor-grab active:cursor-grabbing ${
-                                      isOpenAuction ? 'bg-amber-950 border-amber-500 text-amber-100' : 'bg-indigo-950 border-indigo-700 text-white'
+                                    className={`p-3 border rounded-xl flex justify-between items-center shadow cursor-grab active:cursor-grabbing transition-all ${
+                                      isCompleted
+                                        ? 'bg-emerald-950/95 border-emerald-500 text-emerald-100 shadow-emerald-950/50'
+                                        : isOpenAuction
+                                        ? 'bg-amber-950 border-amber-500 text-amber-100'
+                                        : t.isPersonal
+                                        ? 'bg-purple-950 border-purple-600 text-purple-100'
+                                        : hasContractor
+                                        ? 'bg-amber-950/90 border-amber-600 text-amber-100'
+                                        : 'bg-indigo-950 border-indigo-700 text-white'
                                     }`}
                                   >
                                     <div>
                                       <div className="flex items-center gap-2">
-                                        <h4 className="font-bold text-sm">{t.recurrenceLabel ? `🔄 ${t.title}` : t.title}</h4>
+                                        <h4 className="font-bold text-sm">
+                                          {isCompleted ? `✅ ${t.title}` : (t.recurrenceLabel ? `🔄 ${t.title}` : t.title)}
+                                        </h4>
                                         {Number(t.budget) > 0 && (
                                           <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-600">
                                             💰 ${Number(t.budget).toFixed(2)} {t.currency || 'USD'}
@@ -3649,12 +3669,16 @@
                                         )}
                                       </div>
                                       <p className="text-xs text-gray-300">
-                                        {isOpenAuction
+                                        {isOpenAuction && !isCompleted
                                           ? '⚡ SUBASTA LIBRE PARA CONTRATISTAS'
                                           : `👥 Asignados (${assignedUsers.length}): ${assignedUsers.map(u => u.name.split(' ')[0]).join(', ')}`}
                                       </p>
                                     </div>
-                                    <span className="text-xs font-mono px-2 py-1 rounded bg-gray-900 font-bold">{isOpenAuction ? '⚡ RECLAMAR' : t.status}</span>
+                                    <span className={`text-xs font-mono px-2.5 py-1 rounded-lg font-bold ${
+                                      isCompleted ? 'bg-emerald-600 text-white' : 'bg-gray-900'
+                                    }`}>
+                                      {isCompleted ? '✅ COMPLETADO' : isOpenAuction ? '⚡ RECLAMAR' : t.status}
+                                    </span>
                                   </div>
                                 );
                               })}
@@ -3696,21 +3720,33 @@
                               {dayTasks.length > 0 && <span className="text-[10px] font-semibold text-gray-400">{dayTasks.length} trab.</span>}
                             </div>
                             <div className="space-y-1">
-                              {dayTasks.slice(0, 2).map(t => (
-                                <div
-                                  key={t.id}
-                                  draggable={t.status !== 'COMPLETED'}
-                                  onDragStart={(e) => {
-                                    e.stopPropagation();
-                                    setDraggedTaskId(t.id);
-                                  }}
-                                  onDragEnd={() => setDraggedTaskId(null)}
-                                  onClick={(e) => { e.stopPropagation(); setSelectedTask(t); }}
-                                  className={`p-1 text-[10px] border rounded truncate font-semibold cursor-grab active:cursor-grabbing ${t.status === 'OPEN_AUCTION' || getTaskAssignedIds(t).length === 0 ? 'bg-amber-950 border-amber-500 text-amber-200' : 'bg-indigo-950 border-indigo-800 text-indigo-200'}`}
-                                >
-                                  {t.isPersonal ? `🟣 ${t.title}` : (t.recurrenceLabel ? `🔄 ${t.title}` : t.title)}
-                                </div>
-                              ))}
+                              {dayTasks.slice(0, 2).map(t => {
+                                const isCompleted = t.status === 'COMPLETED';
+                                const isOpenAuction = t.status === 'OPEN_AUCTION' || getTaskAssignedIds(t).length === 0;
+                                return (
+                                  <div
+                                    key={t.id}
+                                    draggable={!isCompleted}
+                                    onDragStart={(e) => {
+                                      e.stopPropagation();
+                                      setDraggedTaskId(t.id);
+                                    }}
+                                    onDragEnd={() => setDraggedTaskId(null)}
+                                    onClick={(e) => { e.stopPropagation(); setSelectedTask(t); }}
+                                    className={`p-1 text-[10px] border rounded truncate font-semibold cursor-grab active:cursor-grabbing ${
+                                      isCompleted
+                                        ? 'bg-emerald-950 border-emerald-500 text-emerald-200'
+                                        : isOpenAuction
+                                        ? 'bg-amber-950 border-amber-500 text-amber-200'
+                                        : t.isPersonal
+                                        ? 'bg-purple-950 border-purple-700 text-purple-200'
+                                        : 'bg-indigo-950 border-indigo-800 text-indigo-200'
+                                    }`}
+                                  >
+                                    {isCompleted ? `✅ ${t.title}` : t.isPersonal ? `🟣 ${t.title}` : (t.recurrenceLabel ? `🔄 ${t.title}` : t.title)}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         );
@@ -3727,11 +3763,24 @@
                       {filteredTasks.map(t => {
                         const assignedUsers = getTaskAssignedUsers(t, users);
                         const isOpenAuction = t.status === 'OPEN_AUCTION' || assignedUsers.length === 0;
+                        const isCompleted = t.status === 'COMPLETED';
 
                         return (
-                          <div key={t.id} onClick={() => setSelectedTask(t)} className={`border hover:border-indigo-500 rounded-2xl p-4 cursor-pointer space-y-2 ${isOpenAuction ? 'bg-amber-950/80 border-amber-500' : 'bg-gray-950 border-gray-800'}`}>
+                          <div
+                            key={t.id}
+                            onClick={() => setSelectedTask(t)}
+                            className={`border hover:border-indigo-500 rounded-2xl p-4 cursor-pointer space-y-2 transition-all ${
+                              isCompleted
+                                ? 'bg-emerald-950/85 border-emerald-500 text-emerald-100'
+                                : isOpenAuction
+                                ? 'bg-amber-950/80 border-amber-500'
+                                : 'bg-gray-950 border-gray-800'
+                            }`}
+                          >
                             <div className="flex justify-between items-start gap-2">
-                              <h4 className="font-bold text-white text-sm">{t.title}</h4>
+                              <h4 className="font-bold text-white text-sm">
+                                {isCompleted ? `✅ ${t.title}` : t.title}
+                              </h4>
                               <div className="flex items-center gap-1.5 shrink-0">
                                 {Number(t.budget) > 0 && (
                                   <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full border ${
@@ -3742,11 +3791,15 @@
                                     {t.paymentStatus === 'PAID' ? '💵 PAGADO' : '💰'} ${Number(t.budget).toFixed(2)} {t.currency || 'USD'}
                                   </span>
                                 )}
-                                <span className="text-xs bg-gray-900 px-2.5 py-0.5 rounded-full font-bold">{isOpenAuction ? '⚡ SUBASTA LIBRE' : t.status}</span>
+                                <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
+                                  isCompleted ? 'bg-emerald-600 text-white' : 'bg-gray-900'
+                                }`}>
+                                  {isCompleted ? '✅ COMPLETADO' : isOpenAuction ? '⚡ SUBASTA LIBRE' : t.status}
+                                </span>
                               </div>
                             </div>
                             <p className="text-xs text-gray-300">
-                              {isOpenAuction
+                              {isOpenAuction && !isCompleted
                                 ? '⚡ ¡Cualquier contratista o partner puede reclamarlo!'
                                 : `👥 Asignados (${assignedUsers.length}): ${assignedUsers.map(u => u.name).join(', ')}`}
                             </p>
@@ -3764,7 +3817,7 @@
                                 </a>
                               </div>
                             )}
-                            <p className="text-xs text-gray-500 font-mono">⏰ {new Date(t.startTime).toLocaleString('es-ES')}</p>
+                            <p className="text-xs text-gray-400 font-mono">⏰ {new Date(t.startTime).toLocaleString('es-ES')}</p>
                           </div>
                         );
                       })}
