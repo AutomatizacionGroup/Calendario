@@ -68,7 +68,8 @@
 
     // --- INITIAL SEED DATA WITH MULTIPLE CONTRACTORS & AUCTION TASKS ---
     const DEFAULT_USERS = [
-      { id: 'usr-1', name: 'Ing. Carlos Mendoza (Jefe)', username: 'carlos.mendoza', email: 'jefe@empresa.com', phone: '+525551234567', role: 'BOSS', status: 'ACTIVE', password: '123456' }
+      { id: 'usr-1', name: 'Ing. Carlos Mendoza (Jefe)', username: 'carlos.mendoza', email: 'jefe@empresa.com', phone: '+525551234567', role: 'BOSS', status: 'ACTIVE', password: '123456' },
+      { id: 'usr-3', name: 'Contratista 3ero (Genérico)', username: 'tercero', email: 'tercero@empresa.com', phone: '+584120000000', role: 'THIRD_PARTY', status: 'ACTIVE', password: '123456' }
     ];
 
     const DEFAULT_PROJECTS = [
@@ -771,6 +772,45 @@
                   <span>Iniciar Sesión Segura</span>
                   <span>➔</span>
                 </button>
+
+                {/* Botones de Acceso Rápido para Pruebas */}
+                <div className="pt-3 border-t border-gray-800/80 space-y-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">⚡ Acceso Rápido de Prueba (1 Clic)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserOrEmailInput('jefe@empresa.com');
+                        setPassword('123456');
+                        const bossUser = users.find(u => u.role === 'BOSS') || DEFAULT_USERS[0];
+                        if (bossUser) onLogin(bossUser, rememberMe);
+                      }}
+                      className="p-2 bg-gray-950 hover:bg-emerald-950/60 border border-gray-800 hover:border-emerald-600/60 rounded-xl text-left transition-all cursor-pointer group"
+                    >
+                      <div className="text-[11px] font-bold text-emerald-400 group-hover:text-emerald-300 flex items-center space-x-1">
+                        <span>👑</span>
+                        <span className="truncate">Jefe / Admin</span>
+                      </div>
+                      <div className="text-[9px] text-gray-500 font-mono truncate">jefe@empresa.com • 123456</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserOrEmailInput('tercero@empresa.com');
+                        setPassword('123456');
+                        const thirdPartyUser = users.find(u => u.email === 'tercero@empresa.com' || u.role === 'THIRD_PARTY') || DEFAULT_USERS[1];
+                        if (thirdPartyUser) onLogin(thirdPartyUser, rememberMe);
+                      }}
+                      className="p-2 bg-gray-950 hover:bg-amber-950/60 border border-gray-800 hover:border-amber-600/60 rounded-xl text-left transition-all cursor-pointer group"
+                    >
+                      <div className="text-[11px] font-bold text-amber-400 group-hover:text-amber-300 flex items-center space-x-1">
+                        <span>🔧</span>
+                        <span className="truncate">Contratista 3ero</span>
+                      </div>
+                      <div className="text-[9px] text-gray-500 font-mono truncate">tercero@empresa.com • 123456</div>
+                    </button>
+                  </div>
+                </div>
               </form>
             )}
 
@@ -1619,7 +1659,14 @@
           const saved = localStorage.getItem('cal_users');
           if (saved) {
             const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const merged = [...parsed];
+              DEFAULT_USERS.forEach(defUser => {
+                const exists = merged.some(u => u.id === defUser.id || u.email.toLowerCase() === defUser.email.toLowerCase());
+                if (!exists) merged.push(defUser);
+              });
+              return merged;
+            }
           }
         } catch (e) {}
         return DEFAULT_USERS;
