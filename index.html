@@ -95,7 +95,12 @@
           isAuction: false,
           assignedToId: 'usr-2',
           createdById: 'usr-1',
-          projectId: 'prj-2'
+          projectId: 'prj-2',
+          subtasks: [
+            { id: 'st-1', text: 'Verificar estado de baterías de UPS', done: true },
+            { id: 'st-2', text: 'Limpieza de filtros y ventiladores de rack', done: false },
+            { id: 'st-3', text: 'Comprobar respaldos automáticos en la nube', done: false }
+          ]
         },
         {
           id: 'task-2',
@@ -109,7 +114,11 @@
           isAuction: true,
           assignedToId: null, // SIN ASIGNAR - SUBASTA ABIERTA
           createdById: 'usr-1',
-          projectId: 'prj-3'
+          projectId: 'prj-3',
+          subtasks: [
+            { id: 'st-4', text: 'Revisión de presión de gas refrigerante', done: false },
+            { id: 'st-5', text: 'Limpieza de bandeja de drenaje y serpentín', done: false }
+          ]
         },
         {
           id: 'task-3',
@@ -119,11 +128,18 @@
           startTime: `${dateStr}T13:00:00`,
           endTime: `${dateStr}T16:00:00`,
           status: 'IN_PROGRESS',
+          startedAt: `${dateStr}T13:05:00`,
+          startedBy: 'Carlos (Contratista Redes)',
           isPersonal: false,
           isAuction: false,
           assignedToId: 'usr-3',
           createdById: 'usr-1',
-          projectId: 'prj-4'
+          projectId: 'prj-4',
+          subtasks: [
+            { id: 'st-6', text: 'Tendido de tubería EMT y canaletas', done: true },
+            { id: 'st-7', text: 'Ponchado de 24 jacks RJ45 Cat6a en patch panel', done: true },
+            { id: 'st-8', text: 'Certificación con escáner Fluke y etiquetado', done: false }
+          ]
         },
         {
           id: 'task-4',
@@ -137,7 +153,8 @@
           isAuction: false,
           assignedToId: 'usr-2',
           createdById: 'usr-2',
-          projectId: null
+          projectId: null,
+          subtasks: []
         }
       ];
     };
@@ -1870,7 +1887,7 @@
       };
 
       // Create Task Logic (Multi-Participant & Private Personal Events)
-      const handleCreateTask = ({ title, description, location, mapsUrl, dateStr, startTimeStr, endTimeStr, assignedToIds = [], isPersonal, isAuction, projectId }) => {
+      const handleCreateTask = ({ title, description, location, mapsUrl, dateStr, startTimeStr, endTimeStr, assignedToIds = [], isPersonal, isAuction, projectId, initialSubtasks = [] }) => {
         const start = new Date(`${dateStr}T${startTimeStr}:00`);
         const end = new Date(`${dateStr}T${endTimeStr}:00`);
 
@@ -1933,6 +1950,14 @@
           }
         }
 
+        const formattedSubtasks = Array.isArray(initialSubtasks)
+          ? initialSubtasks.filter(s => s && s.trim()).map((s, idx) => ({
+              id: `sub-${Date.now()}-${idx}`,
+              text: s.trim(),
+              completed: false
+            }))
+          : [];
+
         const newTask = {
           id: 'task-' + Date.now(),
           title: isUnassignedAuction && !title.includes('SUBASTA') ? `⚡ SUBASTA: ${title}` : title,
@@ -1947,7 +1972,10 @@
           assignedToId: isUnassignedAuction ? null : finalAssignedIds[0],
           assignedToIds: isUnassignedAuction ? [] : finalAssignedIds,
           createdById: currentUser.id,
-          projectId: isPersonalTask ? null : (projectId || null)
+          projectId: isPersonalTask ? null : (projectId || null),
+          subtasks: formattedSubtasks,
+          evidencePhotos: [],
+          completionNote: ''
         };
 
         setTasks(prev => [...prev, newTask]);
@@ -2201,13 +2229,124 @@
         setSelectedTask(prev => prev && prev.id === taskId ? { ...prev, location: newLocation } : prev);
       };
 
+      // Checklist de Subtareas (Agregar, Marcar/Desmarcar, Eliminar)
+      const handleAddSubtask = (taskId, text) => {
+        if (!text || !text.trim()) return;
+        const newSub = { id: 'sub-' + Date.now() + Math.random().toString(36).slice(2, 6), text: text.trim(), completed: false };
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId) {
+            const subs = Array.isArray(t.subtasks) ? [...t.subtasks, newSub] : [newSub];
+            return { ...t, subtasks: subs };
+          }
+          return t;
+        }));
+        setSelectedTask(prev => {
+          if (prev && prev.id === taskId) {
+            const subs = Array.isArray(prev.subtasks) ? [...prev.subtasks, newSub] : [newSub];
+            return { ...prev, subtasks: subs };
+          }
+          return prev;
+        });
+      };
+
+      const handleToggleSubtask = (taskId, subId) => {
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId && Array.isArray(t.subtasks)) {
+            const subs = t.subtasks.map(s => s.id === subId ? { ...s, completed: !s.completed } : s);
+            return { ...t, subtasks: subs };
+          }
+          return t;
+        }));
+        setSelectedTask(prev => {
+          if (prev && prev.id === taskId && Array.isArray(prev.subtasks)) {
+            const subs = prev.subtasks.map(s => s.id === subId ? { ...s, completed: !s.completed } : s);
+            return { ...prev, subtasks: subs };
+          }
+          return prev;
+        });
+      };
+
+      const handleDeleteSubtask = (taskId, subId) => {
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId && Array.isArray(t.subtasks)) {
+            const subs = t.subtasks.filter(s => s.id !== subId);
+            return { ...t, subtasks: subs };
+          }
+          return t;
+        }));
+        setSelectedTask(prev => {
+          if (prev && prev.id === taskId && Array.isArray(prev.subtasks)) {
+            const subs = prev.subtasks.filter(s => s.id !== subId);
+            return { ...prev, subtasks: subs };
+          }
+          return prev;
+        });
+      };
+
+      //Guardar Nota de Cierre y Fotos de Evidencia
+      const handleSaveTaskEvidence = (taskId, note, photoDataUrl) => {
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId) {
+            const photos = Array.isArray(t.evidencePhotos) ? [...t.evidencePhotos] : [];
+            if (photoDataUrl) photos.push(photoDataUrl);
+            return {
+              ...t,
+              completionNote: note !== undefined ? note : (t.completionNote || ''),
+              evidencePhotos: photos
+            };
+          }
+          return t;
+        }));
+        setSelectedTask(prev => {
+          if (prev && prev.id === taskId) {
+            const photos = Array.isArray(prev.evidencePhotos) ? [...prev.evidencePhotos] : [];
+            if (photoDataUrl) photos.push(photoDataUrl);
+            return {
+              ...prev,
+              completionNote: note !== undefined ? note : (prev.completionNote || ''),
+              evidencePhotos: photos
+            };
+          }
+          return prev;
+        });
+      };
+
+      const handleRemoveEvidencePhoto = (taskId, indexToRemove) => {
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId && Array.isArray(t.evidencePhotos)) {
+            return { ...t, evidencePhotos: t.evidencePhotos.filter((_, idx) => idx !== indexToRemove) };
+          }
+          return t;
+        }));
+        setSelectedTask(prev => {
+          if (prev && prev.id === taskId && Array.isArray(prev.evidencePhotos)) {
+            return { ...prev, evidencePhotos: prev.evidencePhotos.filter((_, idx) => idx !== indexToRemove) };
+          }
+          return prev;
+        });
+      };
+
       // Task Status Update & Delete
-      const handleUpdateTaskStatus = (taskId, newStatus) => {
+      const handleUpdateTaskStatus = (taskId, newStatus, extraEvidence = null) => {
         let completionAlert = null;
 
         setTasks(prev => prev.map(t => {
           if (t.id === taskId) {
             let updatedTask = { ...t, status: newStatus };
+
+            if (newStatus === 'IN_PROGRESS' && !t.startedAt) {
+              updatedTask.startedAt = new Date().toISOString();
+              updatedTask.startedBy = currentUser.name;
+            }
+
+            if (extraEvidence) {
+              if (extraEvidence.completionNote !== undefined) {
+                updatedTask.completionNote = extraEvidence.completionNote;
+              }
+              if (Array.isArray(extraEvidence.evidencePhotos)) {
+                updatedTask.evidencePhotos = extraEvidence.evidencePhotos;
+              }
+            }
 
             if (newStatus === 'COMPLETED') {
               const nowTime = new Date();
@@ -2215,6 +2354,9 @@
 
               updatedTask.completedAt = nowTime.toISOString();
               updatedTask.completedBy = currentUser.name;
+              if (!updatedTask.startedAt) {
+                updatedTask.startedAt = t.startTime;
+              }
 
               // If completing before scheduled end time, update endTime to current time to free schedule
               if (nowTime < scheduledEnd && nowTime > new Date(t.startTime)) {
@@ -2239,8 +2381,8 @@
               } else {
                 completionAlert = {
                   type: 'SUCCESS',
-                  title: '✅ Trabajo Completado',
-                  message: `El trabajo '${t.title}' ha sido completado y registrado exitosamente en la Bitácora de Actividades.`,
+                  title: '✅ Trabajo Completado con Éxito',
+                  message: `El trabajo '${t.title}' ha sido finalizado y su reporte de evidencia ha quedado registrado en la Bitácora de Actividades.`,
                   taskTitle: t.title,
                   dateStr: nowTime.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }),
                   timeStr: `Finalizado por ${currentUser.name}`
@@ -3025,6 +3167,8 @@
                     selectedUserIds = [currentUser.id];
                   }
 
+                  const rawSubtasks = form.initialSubtasksText ? form.initialSubtasksText.value.split('\n').map(l => l.trim()).filter(Boolean) : [];
+
                   const success = handleCreateTask({
                     title: form.title.value,
                     description: form.description.value,
@@ -3036,7 +3180,8 @@
                     assignedToIds: selectedUserIds,
                     isPersonal: form.isPersonal ? form.isPersonal.checked : false,
                     isAuction: isAuctionChecked,
-                    projectId: form.projectId ? form.projectId.value : null
+                    projectId: form.projectId ? form.projectId.value : null,
+                    initialSubtasks: rawSubtasks
                   });
                   if (success) {
                     setIsParticipantsOpen(false);
@@ -3203,6 +3348,16 @@
                     <textarea name="description" rows="2" placeholder="Instrucciones para los participantes..." className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-sm text-gray-100" />
                   </div>
 
+                  <div>
+                    <label className="block text-xs font-semibold text-emerald-400 mb-1">☑️ Checklist de Pasos / Subtareas (Opcional - 1 paso por línea)</label>
+                    <textarea
+                      name="initialSubtasksText"
+                      rows="3"
+                      placeholder={"Ej.:\n1. Revisión física de equipos\n2. Medición de voltaje y respaldo\n3. Prueba de funcionamiento y limpieza"}
+                      className="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-gray-100 focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
                   <div className="flex items-center space-x-2.5 bg-purple-950/40 border border-purple-800/60 p-3 rounded-xl">
                     <input
                       type="checkbox"
@@ -3245,7 +3400,7 @@
           {/* MODAL DETALLE TAREA (CON BOTÓN DE RECLAMAR SUBASTA PARA CONTRATISTAS) */}
           {selectedTask && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/80 backdrop-blur-sm">
-              <div className="bg-gray-900 border border-gray-800 w-full max-w-lg rounded-2xl shadow-2xl p-5 space-y-4">
+              <div className="bg-gray-900 border border-gray-800 w-full max-w-xl rounded-2xl shadow-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center border-b border-gray-800 pb-3">
                   <h3 className="font-bold text-white text-base">{selectedTask.title}</h3>
                   <button onClick={() => setSelectedTask(null)} className="text-gray-400 hover:text-white">✕</button>
@@ -3450,15 +3605,235 @@
                     </div>
                   )}
 
-                  {selectedTask.description && <p>📝 Detalles: <span className="text-gray-400">{selectedTask.description}</span></p>}
+                  {selectedTask.description && (
+                    <div className="bg-gray-950 p-3 rounded-xl border border-gray-800">
+                      <p className="font-semibold text-gray-300 mb-1">📝 Detalles / Instrucciones:</p>
+                      <p className="text-gray-400 whitespace-pre-wrap">{selectedTask.description}</p>
+                    </div>
+                  )}
+
+                  {/* ☑️ CHECKLIST INTERACTIVO DE SUBTAREAS / PASOS */}
+                  <div className="bg-gray-950 p-3.5 rounded-2xl border border-gray-800 space-y-2.5">
+                    {(() => {
+                      const subs = Array.isArray(selectedTask.subtasks) ? selectedTask.subtasks : [];
+                      const doneCount = subs.filter(s => s.completed).length;
+                      const pct = subs.length > 0 ? Math.round((doneCount / subs.length) * 100) : 0;
+
+                      return (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-emerald-400 flex items-center gap-1.5 text-xs">
+                              <span>☑️ Checklist de Pasos / Subtareas</span>
+                              <span className="bg-gray-900 border border-gray-700 text-gray-300 px-2 py-0.5 rounded-full text-[10px]">
+                                {doneCount}/{subs.length} ({pct}%)
+                              </span>
+                            </span>
+                          </div>
+
+                          {subs.length > 0 && (
+                            <div className="w-full h-1.5 bg-gray-900 rounded-full overflow-hidden border border-gray-800">
+                              <div
+                                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          )}
+
+                          {subs.length === 0 ? (
+                            <p className="text-[11px] text-gray-500 italic">No hay pasos específicos registrados en este trabajo aún.</p>
+                          ) : (
+                            <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                              {subs.map(sub => (
+                                <div
+                                  key={sub.id}
+                                  className={`flex items-center justify-between p-2 rounded-xl border text-xs transition-all ${
+                                    sub.completed
+                                      ? 'bg-emerald-950/30 border-emerald-800/50 text-gray-400'
+                                      : 'bg-gray-900 border-gray-800 text-gray-200'
+                                  }`}
+                                >
+                                  <label className="flex items-center gap-2.5 cursor-pointer flex-1 select-none">
+                                    <input
+                                      type="checkbox"
+                                      checked={Boolean(sub.completed)}
+                                      onChange={() => handleToggleSubtask(selectedTask.id, sub.id)}
+                                      className="w-4 h-4 rounded text-emerald-500 focus:ring-emerald-500 bg-gray-950 border-gray-700 cursor-pointer"
+                                    />
+                                    <span className={sub.completed ? 'line-through text-gray-500' : 'font-medium text-gray-100'}>
+                                      {sub.text}
+                                    </span>
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteSubtask(selectedTask.id, sub.id)}
+                                    className="text-gray-500 hover:text-red-400 px-1.5 text-xs transition-colors"
+                                    title="Eliminar paso"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              const input = e.target.newSubtaskInput;
+                              if (input && input.value.trim()) {
+                                handleAddSubtask(selectedTask.id, input.value);
+                                input.value = '';
+                              }
+                            }}
+                            className="flex gap-2 pt-1"
+                          >
+                            <input
+                              name="newSubtaskInput"
+                              placeholder="Agregar nuevo paso al checklist (ej. Verificar voltajes)..."
+                              className="flex-1 bg-gray-900 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                            />
+                            <button
+                              type="submit"
+                              className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl transition-all shrink-0 cursor-pointer"
+                            >
+                              + Agregar
+                            </button>
+                          </form>
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  {/* 📸 EVIDENCIA DE TRABAJO Y REPORTE DE CIERRE */}
+                  {selectedTask.assignedToId && (
+                    <div className="bg-gray-950 p-3.5 rounded-2xl border border-gray-800 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-amber-400 flex items-center gap-1.5 text-xs">
+                          <span>📸 Evidencia de Trabajo & Reporte de Cierre</span>
+                        </span>
+                        {selectedTask.startedAt && (
+                          <span className="text-[10px] font-mono bg-blue-950/80 text-blue-300 border border-blue-800/60 px-2 py-0.5 rounded-lg">
+                            ⏱️ Check-in: {new Date(selectedTask.startedAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-300 mb-1">
+                          📝 Nota de Cierre / Observaciones del Técnico:
+                        </label>
+                        <textarea
+                          rows="2"
+                          value={selectedTask.completionNote || ''}
+                          onChange={(e) => handleSaveTaskEvidence(selectedTask.id, e.target.value, null)}
+                          placeholder="Escribe aquí qué se realizó, repuestos usados o novedades al finalizar..."
+                          className="w-full bg-gray-900 border border-gray-800 rounded-xl px-3 py-2 text-xs text-gray-100 focus:border-emerald-500 focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Subida de Fotos de Evidencia (Comprimidas automáticamente en Base64) */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-semibold text-gray-300">
+                            🖼️ Fotos de Evidencia (Antes / Después):
+                          </label>
+                          <label className="px-3 py-1 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700 text-indigo-200 rounded-xl text-[11px] font-bold cursor-pointer transition-all flex items-center gap-1">
+                            <span>📷 Adjuntar Foto</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files && e.target.files[0];
+                                if (!file) return;
+                                const reader = new FileReader();
+                                reader.onload = (ev) => {
+                                  const img = new Image();
+                                  img.onload = () => {
+                                    const canvas = document.createElement('canvas');
+                                    const MAX_W = 600;
+                                    const scale = img.width > MAX_W ? MAX_W / img.width : 1;
+                                    canvas.width = img.width * scale;
+                                    canvas.height = img.height * scale;
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+                                    handleSaveTaskEvidence(selectedTask.id, undefined, compressedDataUrl);
+                                  };
+                                  img.src = ev.target.result;
+                                };
+                                reader.readAsDataURL(file);
+                                e.target.value = '';
+                              }}
+                            />
+                          </label>
+                        </div>
+
+                        {Array.isArray(selectedTask.evidencePhotos) && selectedTask.evidencePhotos.length > 0 ? (
+                          <div className="grid grid-cols-3 gap-2 pt-1">
+                            {selectedTask.evidencePhotos.map((photoUrl, idx) => (
+                              <div key={idx} className="relative group rounded-xl overflow-hidden border border-gray-700 bg-gray-900 h-20">
+                                <img
+                                  src={photoUrl}
+                                  alt={`Evidencia ${idx + 1}`}
+                                  onClick={() => window.open(photoUrl, '_blank')}
+                                  className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveEvidencePhoto(selectedTask.id, idx)}
+                                  className="absolute top-1 right-1 bg-red-600/90 hover:bg-red-500 text-white w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center shadow"
+                                  title="Eliminar foto"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-gray-500 italic">Sin fotos adjuntas todavía.</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {selectedTask.assignedToId && (
                     <div className="pt-2 border-t border-gray-800 space-y-2">
-                      <p className="font-semibold text-gray-400">Actualizar Estado:</p>
-                      <div className="flex gap-2">
-                        <button onClick={() => handleUpdateTaskStatus(selectedTask.id, 'IN_PROGRESS')} className="px-3 py-1.5 bg-blue-950 border border-blue-800 text-blue-200 rounded-xl text-xs font-semibold">En Proceso</button>
-                        <button onClick={() => handleUpdateTaskStatus(selectedTask.id, 'COMPLETED')} className="px-3 py-1.5 bg-emerald-950 border border-emerald-800 text-emerald-200 rounded-xl text-xs font-semibold">Completado</button>
-                        <button onClick={() => handleUpdateTaskStatus(selectedTask.id, 'CANCELLED')} className="px-3 py-1.5 bg-gray-800 text-gray-300 rounded-xl text-xs font-semibold">Liberar Horario</button>
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold text-gray-300">Actualizar Estado del Trabajo:</p>
+                        {selectedTask.completedAt && (
+                          <span className="text-[10px] font-mono text-emerald-400">
+                            ✅ Cerrado: {new Date(selectedTask.completedAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          onClick={() => handleUpdateTaskStatus(selectedTask.id, 'IN_PROGRESS')}
+                          className={`py-2 px-3 border rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                            selectedTask.status === 'IN_PROGRESS'
+                              ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-600/30'
+                              : 'bg-blue-950/80 hover:bg-blue-900 border-blue-800 text-blue-200'
+                          }`}
+                        >
+                          <span>▶️ En Proceso (Check-in)</span>
+                        </button>
+                        <button
+                          onClick={() => handleUpdateTaskStatus(selectedTask.id, 'COMPLETED')}
+                          className={`py-2 px-3 border rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                            selectedTask.status === 'COMPLETED'
+                              ? 'bg-emerald-600 border-emerald-400 text-white shadow-lg shadow-emerald-600/30'
+                              : 'bg-emerald-950/80 hover:bg-emerald-900 border-emerald-800 text-emerald-200'
+                          }`}
+                        >
+                          <span>✅ Completar y Guardar</span>
+                        </button>
+                        <button
+                          onClick={() => handleUpdateTaskStatus(selectedTask.id, 'CANCELLED')}
+                          className="py-2 px-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                        >
+                          🔓 Liberar Horario
+                        </button>
                       </div>
                     </div>
                   )}
@@ -3850,21 +4225,71 @@
                               <p className="text-gray-400">
                                 {assignedUsers.map(u => `${u.name} (${u.role === 'BOSS' ? 'Jefe' : u.role === 'THIRD_PARTY' ? 'Contratista' : 'Empleado'})`).join(', ') || 'Sin asignar'}
                               </p>
+                              {Array.isArray(t.subtasks) && t.subtasks.length > 0 && (
+                                <p className="text-[11px] text-indigo-300 pt-1 font-semibold">
+                                  ☑️ Checklist: {t.subtasks.filter(s => s.done).length}/{t.subtasks.length} pasos completados
+                                </p>
+                              )}
                             </div>
 
                             <div className="bg-gray-950 p-2.5 rounded-lg border border-gray-800 space-y-1 font-mono text-[11px]">
-                              <p className="text-gray-300">⏰ Inicio: <span className="text-white">{startTimeStr}</span></p>
+                              <p className="text-gray-300">📅 Prog. Inicio: <span className="text-white">{startTimeStr}</span></p>
+                              {t.startedAt && (
+                                <p className="text-blue-300">▶️ Check-in Real: <span className="font-bold">{new Date(t.startedAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span> {t.startedBy ? `(${t.startedBy})` : ''}</p>
+                              )}
                               <p className="text-gray-300">
-                                ⏰ Finalizado: <span className="text-emerald-400 font-bold">{endTimeStr}</span>
+                                ✅ Check-out / Fin: <span className="text-emerald-400 font-bold">{endTimeStr}</span>
                                 {origEndStr && <span className="text-gray-500 line-through ml-1.5">(Prog. {origEndStr})</span>}
                               </p>
                               {t.completedBy && <p className="text-gray-400">👤 Registrado por: <span className="text-indigo-300">{t.completedBy}</span></p>}
                             </div>
                           </div>
 
-                          {t.location && (
-                            <p className="text-xs text-gray-400">📍 Ubicación: <span className="text-gray-200 font-semibold">{t.location}</span></p>
+                          {t.completionNote && (
+                            <div className="bg-emerald-950/30 border border-emerald-800/50 rounded-xl p-3 text-xs space-y-1">
+                              <p className="font-bold text-emerald-300 flex items-center gap-1.5">
+                                <span>📝 Reporte / Nota de Cierre Técnico:</span>
+                              </p>
+                              <p className="text-gray-200 whitespace-pre-wrap leading-relaxed">{t.completionNote}</p>
+                            </div>
                           )}
+
+                          {Array.isArray(t.evidencePhotos) && t.evidencePhotos.length > 0 && (
+                            <div className="space-y-1.5 pt-1">
+                              <p className="text-[11px] font-bold text-emerald-400">📸 Evidencia Fotográfica Adjunta ({t.evidencePhotos.length}):</p>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                {t.evidencePhotos.map(ph => (
+                                  <div key={ph.id} className="bg-gray-950 border border-gray-800 rounded-lg overflow-hidden">
+                                    <img
+                                      src={ph.dataUrl}
+                                      alt={ph.name}
+                                      onClick={() => {
+                                        const w = window.open('');
+                                        if (w) {
+                                          w.document.write(`<body style="margin:0;background:#090d16;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="${ph.dataUrl}" style="max-width:95vw;max-height:95vh;object-fit:contain;border-radius:12px;" /></body>`);
+                                        }
+                                      }}
+                                      className="w-full h-20 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                      title="Clic para ampliar foto"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap justify-between items-center pt-1 gap-2">
+                            {t.location ? (
+                              <p className="text-xs text-gray-400">📍 Ubicación: <span className="text-gray-200 font-semibold">{t.location}</span></p>
+                            ) : <span />}
+                            <button
+                              type="button"
+                              onClick={() => { setIsCompletedLogsModalOpen(false); setSelectedTask(t); }}
+                              className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-indigo-300 text-[11px] font-bold rounded-lg border border-gray-700 cursor-pointer"
+                            >
+                              🔍 Ver Ficha Completa
+                            </button>
+                          </div>
                         </div>
                       );
                     })
