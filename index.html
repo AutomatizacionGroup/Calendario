@@ -3117,6 +3117,79 @@
                 </button>
               </div>
             )}
+
+            {/* BANNER DE CONTRAOFERTAS / OFERTAS DE CONTRATISTAS PENDIENTES PARA EL JEFE */}
+            {(() => {
+              if (currentUser.role !== 'BOSS') return null;
+              const tasksWithBids = tasks.filter(t => t.status === 'OPEN_AUCTION' && Array.isArray(t.bids) && t.bids.length > 0);
+              if (tasksWithBids.length === 0) return null;
+              const totalBids = tasksWithBids.reduce((acc, t) => acc + t.bids.length, 0);
+
+              return (
+                <div className="mb-4 bg-gradient-to-r from-indigo-950 via-purple-950 to-indigo-950 border border-indigo-500/80 p-3.5 rounded-2xl space-y-2.5 shadow-xl">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center space-x-2.5 text-xs text-indigo-200">
+                      <span className="text-xl">💰</span>
+                      <div>
+                        <strong className="text-white text-sm">
+                          ¡Tienes {totalBids} oferta(s) / contraoferta(s) de contratistas por revisar!
+                        </strong>
+                        <p className="text-indigo-300/90 text-[11px]">
+                          Haz clic en cualquiera de las subastas de abajo o apruébala directamente aquí:
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {tasksWithBids.map(t => (
+                      <div key={t.id} className="bg-gray-950/85 border border-indigo-700/60 rounded-xl p-2.5 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTask(t)}
+                            className="text-xs font-extrabold text-amber-300 hover:underline text-left truncate cursor-pointer"
+                          >
+                            {t.title}
+                          </button>
+                          <span className="text-[10px] font-mono text-gray-400 shrink-0">
+                            Base: ${Number(t.budget || 0).toFixed(2)} {t.currency || 'USD'}
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {t.bids.map(b => (
+                            <div key={b.id} className="flex items-center justify-between gap-2 bg-gray-900 border border-gray-800 px-2.5 py-1.5 rounded-lg text-xs">
+                              <div className="min-w-0">
+                                <span className="font-bold text-white">🔧 {b.userName}</span>
+                                <span className="ml-2 font-mono font-black text-emerald-400">
+                                  ${Number(b.amount).toFixed(2)} {t.currency || 'USD'}
+                                </span>
+                                {b.note && <p className="text-[10px] text-gray-400 truncate">“{b.note}”</p>}
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleAcceptCounterBid(t.id, b)}
+                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-lg shadow cursor-pointer"
+                                >
+                                  ✅ Aprobar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedTask(t)}
+                                  className="px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold text-[10px] rounded-lg cursor-pointer"
+                                >
+                                  Ver
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
               {/* LEFT SIDEBAR (COLLAPSIBLE) */}
               {isSidebarOpen && (
