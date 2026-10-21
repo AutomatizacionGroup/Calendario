@@ -96,6 +96,10 @@
           assignedToId: 'usr-2',
           createdById: 'usr-1',
           projectId: 'prj-2',
+          budget: 85,
+          currency: 'USD',
+          paymentStatus: 'PENDING_PAYMENT',
+          bids: [],
           subtasks: [
             { id: 'st-1', text: 'Verificar estado de baterías de UPS', completed: true },
             { id: 'st-2', text: 'Limpieza de filtros y ventiladores de rack', completed: false },
@@ -115,6 +119,10 @@
           assignedToId: null, // SIN ASIGNAR - SUBASTA ABIERTA
           createdById: 'usr-1',
           projectId: 'prj-3',
+          budget: 120,
+          currency: 'USD',
+          paymentStatus: 'PENDING_PAYMENT',
+          bids: [],
           subtasks: [
             { id: 'st-4', text: 'Revisión de presión de gas refrigerante', completed: false },
             { id: 'st-5', text: 'Limpieza de bandeja de drenaje y serpentín', completed: false }
@@ -135,6 +143,10 @@
           assignedToId: 'usr-3',
           createdById: 'usr-1',
           projectId: 'prj-4',
+          budget: 240,
+          currency: 'USD',
+          paymentStatus: 'PENDING_PAYMENT',
+          bids: [],
           subtasks: [
             { id: 'st-6', text: 'Tendido de tubería EMT y canaletas', completed: true },
             { id: 'st-7', text: 'Ponchado de 24 jacks RJ45 Cat6a en patch panel', completed: true },
@@ -154,6 +166,10 @@
           assignedToId: 'usr-2',
           createdById: 'usr-2',
           projectId: null,
+          budget: 0,
+          currency: 'USD',
+          paymentStatus: 'NOT_APPLICABLE',
+          bids: [],
           subtasks: []
         }
       ];
@@ -1887,7 +1903,7 @@
       };
 
       // Create Task Logic (Multi-Participant & Private Personal Events)
-      const handleCreateTask = ({ title, description, location, mapsUrl, dateStr, startTimeStr, endTimeStr, assignedToIds = [], isPersonal, isAuction, projectId, initialSubtasks = [] }) => {
+      const handleCreateTask = ({ title, description, location, mapsUrl, dateStr, startTimeStr, endTimeStr, assignedToIds = [], isPersonal, isAuction, projectId, initialSubtasks = [], budget = 0, currency = 'USD' }) => {
         const start = new Date(`${dateStr}T${startTimeStr}:00`);
         const end = new Date(`${dateStr}T${endTimeStr}:00`);
 
@@ -1958,6 +1974,8 @@
             }))
           : [];
 
+        const numericBudget = parseFloat(budget) > 0 ? parseFloat(budget) : 0;
+
         const newTask = {
           id: 'task-' + Date.now(),
           title: isUnassignedAuction && !title.includes('SUBASTA') ? `⚡ SUBASTA: ${title}` : title,
@@ -1973,6 +1991,10 @@
           assignedToIds: isUnassignedAuction ? [] : finalAssignedIds,
           createdById: currentUser.id,
           projectId: isPersonalTask ? null : (projectId || null),
+          budget: isPersonalTask ? 0 : numericBudget,
+          currency: currency || 'USD',
+          paymentStatus: isPersonalTask || numericBudget === 0 ? 'NOT_APPLICABLE' : 'PENDING_PAYMENT',
+          bids: [],
           subtasks: formattedSubtasks,
           evidencePhotos: [],
           completionNote: ''
@@ -1994,7 +2016,8 @@
                   .join(', ');
 
                 const mapsUrlFinal = getTaskMapsUrl(newTask);
-                const msg = `NUEVA ASIGNACIÓN DE TRABAJO\n\nHola ${targetUser.name}, ${currentUser.name} te ha asignado al trabajo:\nTrabajo: ${newTask.title}\nFecha: ${formattedDate}\nHorario: ${startTimeStr} - ${endTimeStr}\n${otherNames ? `Participantes: ${targetUser.name}, ${otherNames}\n` : ''}${location ? `Ubicación: ${location}\n` : ''}${mapsUrlFinal ? `🗺️ Mapa: ${mapsUrlFinal}\n` : ''}${description ? `Detalles: ${description}\n` : ''}\nNota: Horario reservado en tu agenda.`;
+                const budgetLine = newTask.budget > 0 ? `💰 Presupuesto / Pago: $${newTask.budget.toFixed(2)} ${newTask.currency}\n` : '';
+                const msg = `NUEVA ASIGNACIÓN DE TRABAJO\n\nHola ${targetUser.name}, ${currentUser.name} te ha asignado al trabajo:\nTrabajo: ${newTask.title}\nFecha: ${formattedDate}\nHorario: ${startTimeStr} - ${endTimeStr}\n${budgetLine}${otherNames ? `Participantes: ${targetUser.name}, ${otherNames}\n` : ''}${location ? `Ubicación: ${location}\n` : ''}${mapsUrlFinal ? `🗺️ Mapa: ${mapsUrlFinal}\n` : ''}${description ? `Detalles: ${description}\n` : ''}\nNota: Horario reservado en tu agenda.`;
 
                 const cleanPhone = formatWhatsAppPhone(targetUser.phone);
                 const waUrl = cleanPhone
@@ -2410,6 +2433,165 @@
         const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
         handleSaveTaskEvidence(selectedTask.id, undefined, compressedDataUrl);
         stopLiveCamera();
+      };
+
+      // --- MÓDULO 2: PRESUPUESTO, COSTOS, CONTRAOFERTAS Y ESTADO DE PAGO ---
+      const handleUpdateTaskBudget = (taskId, newBudget, newCurrency = 'USD') => {
+        const parsed = parseFloat(newBudget);
+        const amount = !isNaN(parsed) && parsed >= 0 ? parsed : 0;
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              budget: amount,
+              currency: newCurrency || t.currency || 'USD',
+              paymentStatus: amount === 0 ? 'NOT_APPLICABLE' : (t.paymentStatus === 'PAID' ? 'PAID' : 'PENDING_PAYMENT')
+            };
+          }
+          return t;
+        }));
+        setSelectedTask(prev => {
+          if (prev && prev.id === taskId) {
+            return {
+              ...prev,
+              budget: amount,
+              currency: newCurrency || prev.currency || 'USD',
+              paymentStatus: amount === 0 ? 'NOT_APPLICABLE' : (prev.paymentStatus === 'PAID' ? 'PAID' : 'PENDING_PAYMENT')
+            };
+          }
+          return prev;
+        });
+      };
+
+      const handleTogglePaymentStatus = (taskId, nextStatus, paymentRef = '') => {
+        const nowIso = new Date().toISOString();
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              paymentStatus: nextStatus,
+              paidAt: nextStatus === 'PAID' ? nowIso : null,
+              paidBy: nextStatus === 'PAID' ? currentUser.name : null,
+              paymentReference: paymentRef !== undefined ? paymentRef : (t.paymentReference || '')
+            };
+          }
+          return t;
+        }));
+        setSelectedTask(prev => {
+          if (prev && prev.id === taskId) {
+            return {
+              ...prev,
+              paymentStatus: nextStatus,
+              paidAt: nextStatus === 'PAID' ? nowIso : null,
+              paidBy: nextStatus === 'PAID' ? currentUser.name : null,
+              paymentReference: paymentRef !== undefined ? paymentRef : (prev.paymentReference || '')
+            };
+          }
+          return prev;
+        });
+      };
+
+      const handleSubmitCounterBid = (taskId, bidAmount, bidNote) => {
+        const amount = parseFloat(bidAmount);
+        if (isNaN(amount) || amount <= 0) {
+          setAppAlert({
+            type: 'ERROR',
+            title: '⚠️ Monto Inválido',
+            message: 'Por favor ingresa un monto válido mayor a 0 para tu contraoferta.'
+          });
+          return;
+        }
+
+        const newBid = {
+          id: 'bid-' + Date.now(),
+          userId: currentUser.id,
+          userName: currentUser.name,
+          userPhone: currentUser.phone,
+          amount,
+          note: (bidNote || '').trim(),
+          createdAt: new Date().toISOString()
+        };
+
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId) {
+            const existingBids = Array.isArray(t.bids) ? t.bids.filter(b => b.userId !== currentUser.id) : [];
+            return { ...t, bids: [...existingBids, newBid] };
+          }
+          return t;
+        }));
+
+        setSelectedTask(prev => {
+          if (prev && prev.id === taskId) {
+            const existingBids = Array.isArray(prev.bids) ? prev.bids.filter(b => b.userId !== currentUser.id) : [];
+            return { ...prev, bids: [...existingBids, newBid] };
+          }
+          return prev;
+        });
+
+        setAppAlert({
+          type: 'SUCCESS',
+          title: '💰 Contraoferta Enviada',
+          message: `Tu propuesta por $${amount.toFixed(2)} ha sido registrada en la subasta para revisión del Jefe / Admin.`
+        });
+      };
+
+      const handleAcceptCounterBid = (taskId, bid) => {
+        const targetTask = tasks.find(t => t.id === taskId);
+        if (!targetTask || !bid) return;
+
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId) {
+            return {
+              ...t,
+              assignedToId: bid.userId,
+              assignedToIds: [bid.userId],
+              status: 'PENDING',
+              isAuction: false,
+              budget: bid.amount,
+              paymentStatus: 'PENDING_PAYMENT',
+              acceptedBidId: bid.id
+            };
+          }
+          return t;
+        }));
+
+        setSelectedTask(prev => {
+          if (prev && prev.id === taskId) {
+            return {
+              ...prev,
+              assignedToId: bid.userId,
+              assignedToIds: [bid.userId],
+              status: 'PENDING',
+              isAuction: false,
+              budget: bid.amount,
+              paymentStatus: 'PENDING_PAYMENT',
+              acceptedBidId: bid.id
+            };
+          }
+          return prev;
+        });
+
+        const start = new Date(targetTask.startTime);
+        const formattedDate = start.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+        const msg = `✅ CONTRAOFERTA ACEPTADA\n\nHola ${bid.userName}, el Jefe/Admin (${currentUser.name}) ha aceptado tu oferta de $${bid.amount.toFixed(2)} ${targetTask.currency || 'USD'} para el trabajo:\nTrabajo: ${targetTask.title}\nFecha: ${formattedDate}\n\nEl trabajo ya está asignado a tu agenda.`;
+
+        setWhatsAppLogs(prev => [
+          {
+            id: 'log-' + Date.now(),
+            recipientName: bid.userName,
+            recipientPhone: bid.userPhone,
+            message: msg,
+            status: 'DIRECT_WHATSAPP',
+            sentAt: new Date().toISOString()
+          },
+          ...prev
+        ]);
+
+        setAppAlert({
+          type: 'SUCCESS',
+          title: '🤝 Contraoferta Aprobada y Trabajo Asignado',
+          message: `Se aprobó el presupuesto de $${bid.amount.toFixed(2)} y el trabajo quedó asignado a ${bid.userName}.`
+        });
       };
 
       // Task Status Update & Delete
@@ -3081,11 +3263,22 @@
                                           <span className="text-red-400 shrink-0 ml-1">🔒</span>
                                         )}
                                       </div>
-                                      {taskProject && (
-                                        <span className="inline-block bg-gray-950/90 text-purple-300 border border-purple-800/60 text-[9px] px-1 py-0.2 rounded truncate max-w-full mb-0.5">
-                                          📂 {taskProject.name}
-                                        </span>
-                                      )}
+                                      <div className="flex flex-wrap items-center gap-1 mb-0.5">
+                                        {taskProject && (
+                                          <span className="inline-block bg-gray-950/90 text-purple-300 border border-purple-800/60 text-[9px] px-1 py-0.2 rounded truncate max-w-full">
+                                            📂 {taskProject.name}
+                                          </span>
+                                        )}
+                                        {Number(t.budget) > 0 && (
+                                          <span className={`inline-block font-mono font-extrabold text-[9px] px-1.5 py-0.2 rounded border ${
+                                            t.paymentStatus === 'PAID'
+                                              ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
+                                              : 'bg-amber-950 text-amber-300 border-amber-600/80'
+                                          }`}>
+                                            {t.paymentStatus === 'PAID' ? '💵' : '💰'} ${Number(t.budget).toFixed(0)} {t.currency || 'USD'}
+                                          </span>
+                                        )}
+                                      </div>
                                       <p className="text-[10px] font-bold truncate">
                                         {isOpenAuction
                                           ? '⚡ ¡RECLAMAR AHORA!'
@@ -3136,7 +3329,14 @@
                                     isOpenAuction ? 'bg-amber-950 border-amber-500 text-amber-100' : 'bg-indigo-950 border-indigo-700 text-white'
                                   }`}>
                                     <div>
-                                      <h4 className="font-bold text-sm">{t.title}</h4>
+                                      <div className="flex items-center gap-2">
+                                        <h4 className="font-bold text-sm">{t.title}</h4>
+                                        {Number(t.budget) > 0 && (
+                                          <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-600">
+                                            💰 ${Number(t.budget).toFixed(2)} {t.currency || 'USD'}
+                                          </span>
+                                        )}
+                                      </div>
                                       <p className="text-xs text-gray-300">
                                         {isOpenAuction
                                           ? '⚡ SUBASTA LIBRE PARA CONTRATISTAS'
@@ -3198,9 +3398,20 @@
 
                         return (
                           <div key={t.id} onClick={() => setSelectedTask(t)} className={`border hover:border-indigo-500 rounded-2xl p-4 cursor-pointer space-y-2 ${isOpenAuction ? 'bg-amber-950/80 border-amber-500' : 'bg-gray-950 border-gray-800'}`}>
-                            <div className="flex justify-between items-start">
+                            <div className="flex justify-between items-start gap-2">
                               <h4 className="font-bold text-white text-sm">{t.title}</h4>
-                              <span className="text-xs bg-gray-900 px-2.5 py-0.5 rounded-full font-bold">{isOpenAuction ? '⚡ SUBASTA LIBRE' : t.status}</span>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                {Number(t.budget) > 0 && (
+                                  <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full border ${
+                                    t.paymentStatus === 'PAID'
+                                      ? 'bg-emerald-950 text-emerald-300 border-emerald-600'
+                                      : 'bg-amber-950 text-amber-300 border-amber-500'
+                                  }`}>
+                                    {t.paymentStatus === 'PAID' ? '💵 PAGADO' : '💰'} ${Number(t.budget).toFixed(2)} {t.currency || 'USD'}
+                                  </span>
+                                )}
+                                <span className="text-xs bg-gray-900 px-2.5 py-0.5 rounded-full font-bold">{isOpenAuction ? '⚡ SUBASTA LIBRE' : t.status}</span>
+                              </div>
                             </div>
                             <p className="text-xs text-gray-300">
                               {isOpenAuction
@@ -3254,6 +3465,8 @@
                   }
 
                   const rawSubtasks = form.initialSubtasksText ? form.initialSubtasksText.value.split('\n').map(l => l.trim()).filter(Boolean) : [];
+                  const taskBudget = form.budget ? parseFloat(form.budget.value) || 0 : 0;
+                  const taskCurrency = form.currency ? form.currency.value : 'USD';
 
                   const success = handleCreateTask({
                     title: form.title.value,
@@ -3267,7 +3480,9 @@
                     isPersonal: form.isPersonal ? form.isPersonal.checked : false,
                     isAuction: isAuctionChecked,
                     projectId: form.projectId ? form.projectId.value : null,
-                    initialSubtasks: rawSubtasks
+                    initialSubtasks: rawSubtasks,
+                    budget: taskBudget,
+                    currency: taskCurrency
                   });
                   if (success) {
                     setIsParticipantsOpen(false);
@@ -3389,6 +3604,38 @@
                     </div>
                   </div>
 
+                  {/* 💰 PRESUPUESTO / MONTO OFRECIDO */}
+                  <div id="budget-option-wrapper" className="bg-amber-950/20 border border-amber-700/40 p-3 rounded-xl space-y-1.5">
+                    <label className="block text-xs font-bold text-amber-300">
+                      💰 Presupuesto / Pago Ofrecido por el Trabajo (Opcional)
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-2 text-xs font-bold text-amber-400">$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          name="budget"
+                          placeholder="0.00 (Ej. 150.00)"
+                          className="w-full bg-gray-950 border border-gray-800 rounded-xl pl-7 pr-3 py-1.5 text-xs text-white font-mono focus:border-amber-500 focus:outline-none"
+                        />
+                      </div>
+                      <select
+                        name="currency"
+                        defaultValue="USD"
+                        className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-amber-300 font-bold focus:outline-none cursor-pointer"
+                      >
+                        <option value="USD">USD ($)</option>
+                        <option value="VES">Bs. (VES)</option>
+                        <option value="EUR">EUR (€)</option>
+                      </select>
+                    </div>
+                    <p className="text-[10px] text-gray-400">
+                      Si es una Subasta, los contratistas verán este pago ofrecido o podrán enviar una contraoferta.
+                    </p>
+                  </div>
+
                   <div className="space-y-2 bg-gray-950 p-3 rounded-xl border border-gray-800">
                     <div>
                       <label className="block text-xs font-semibold text-gray-300 mb-1">📍 Nombre de la Ubicación / Dirección</label>
@@ -3454,6 +3701,7 @@
                         const participantsWrapper = document.getElementById('participants-details-wrapper');
                         const auctionWrapper = document.getElementById('auction-option-wrapper');
                         const projectWrapper = document.getElementById('project-selection-wrapper');
+                        const budgetWrapper = document.getElementById('budget-option-wrapper');
                         if (participantsWrapper) {
                           participantsWrapper.style.opacity = isPersonalChecked ? '0.3' : '1';
                           participantsWrapper.style.pointerEvents = isPersonalChecked ? 'none' : 'auto';
@@ -3465,6 +3713,10 @@
                         if (projectWrapper) {
                           projectWrapper.style.opacity = isPersonalChecked ? '0.3' : '1';
                           projectWrapper.style.pointerEvents = isPersonalChecked ? 'none' : 'auto';
+                        }
+                        if (budgetWrapper) {
+                          budgetWrapper.style.opacity = isPersonalChecked ? '0.3' : '1';
+                          budgetWrapper.style.pointerEvents = isPersonalChecked ? 'none' : 'auto';
                         }
                       }}
                       className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-gray-950 border-purple-700 cursor-pointer"
@@ -3555,25 +3807,185 @@
                     </form>
                   </div>
 
-                  {/* BOTÓN RECLAMAR SI ES SUBASTA LIBRE */}
+                  {/* 💰 CARD DE PRESUPUESTO, COSTOS Y ESTADO DE PAGO (MÓDULO 2) */}
+                  {!selectedTask.isPersonal && (
+                    <div className="bg-amber-950/30 border border-amber-600/50 p-3.5 rounded-2xl shadow-md space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-xs font-extrabold text-amber-400 flex items-center gap-1.5">
+                          <span>💰 Presupuesto & Estado de Pago</span>
+                        </span>
+                        {Number(selectedTask.budget) > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-black text-sm text-white bg-gray-950 px-2.5 py-1 rounded-xl border border-amber-500/60">
+                              ${Number(selectedTask.budget).toFixed(2)} {selectedTask.currency || 'USD'}
+                            </span>
+                            <span className={`px-2.5 py-1 rounded-xl font-extrabold text-[11px] border ${
+                              selectedTask.paymentStatus === 'PAID'
+                                ? 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                                : 'bg-amber-950 text-amber-300 border-amber-500'
+                            }`}>
+                              {selectedTask.paymentStatus === 'PAID' ? '💵 PAGADO' : '⏳ PAGO PENDIENTE'}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-gray-400 italic">Sin presupuesto asignado ($0.00)</span>
+                        )}
+                      </div>
+
+                      {/* Edición de Presupuesto y Control de Pago para el Jefe / Admin */}
+                      {currentUser.role === 'BOSS' && (
+                        <div className="pt-2 border-t border-amber-800/40 space-y-2.5">
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              const val = e.target.editBudgetInput.value;
+                              const curr = e.target.editCurrencyInput.value;
+                              handleUpdateTaskBudget(selectedTask.id, val, curr);
+                              setAppAlert({
+                                type: 'SUCCESS',
+                                title: '💰 Presupuesto Actualizado',
+                                message: `El monto del trabajo se ha actualizado a $${(parseFloat(val) || 0).toFixed(2)} ${curr}.`
+                              });
+                            }}
+                            className="flex flex-wrap items-center gap-2"
+                          >
+                            <div className="relative flex-1 min-w-[130px]">
+                              <span className="absolute left-2.5 top-1.5 text-xs font-bold text-amber-400">$</span>
+                              <input
+                                key={'bgt-' + selectedTask.id + (selectedTask.budget || 0)}
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                name="editBudgetInput"
+                                defaultValue={selectedTask.budget || ''}
+                                placeholder="Monto (Ej. 120)"
+                                className="w-full bg-gray-950 border border-gray-800 rounded-xl pl-6 pr-2 py-1 text-xs text-white font-mono focus:border-amber-500 focus:outline-none"
+                              />
+                            </div>
+                            <select
+                              key={'cur-' + selectedTask.id + (selectedTask.currency || 'USD')}
+                              name="editCurrencyInput"
+                              defaultValue={selectedTask.currency || 'USD'}
+                              className="bg-gray-950 border border-gray-800 rounded-xl px-2.5 py-1 text-xs text-amber-300 font-bold"
+                            >
+                              <option value="USD">USD</option>
+                              <option value="VES">VES</option>
+                              <option value="EUR">EUR</option>
+                            </select>
+                            <button
+                              type="submit"
+                              className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-gray-950 font-black text-xs rounded-xl transition-all cursor-pointer"
+                            >
+                              💾 Guardar Monto
+                            </button>
+                          </form>
+
+                          {Number(selectedTask.budget) > 0 && (
+                            <div className="flex flex-wrap items-center justify-between gap-2 bg-gray-950/80 p-2.5 rounded-xl border border-gray-800">
+                              <div className="text-[11px]">
+                                <span className="text-gray-400">Estado financiero: </span>
+                                {selectedTask.paymentStatus === 'PAID' ? (
+                                  <span className="text-emerald-400 font-bold">
+                                    Pagado {selectedTask.paidAt ? `el ${new Date(selectedTask.paidAt).toLocaleDateString('es-ES')}` : ''}
+                                  </span>
+                                ) : (
+                                  <span className="text-amber-300 font-bold">Pendiente por liquidar</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                {selectedTask.paymentStatus !== 'PAID' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTogglePaymentStatus(selectedTask.id, 'PAID')}
+                                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-lg shadow transition-all cursor-pointer"
+                                  >
+                                    💵 Marcar como Pagado
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTogglePaymentStatus(selectedTask.id, 'PENDING_PAYMENT')}
+                                    className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-amber-300 font-semibold text-[11px] rounded-lg border border-gray-700 transition-all cursor-pointer"
+                                  >
+                                    ↩️ Revertir a Pendiente
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* BOTÓN RECLAMAR SI ES SUBASTA LIBRE + CONTRAOFERTAS */}
                   {(selectedTask.status === 'OPEN_AUCTION' || getTaskAssignedIds(selectedTask).length === 0) ? (
                     <div className="p-4 bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 border border-amber-500/80 rounded-2xl text-center space-y-3 shadow-xl">
                       <div className="text-amber-300 font-extrabold text-sm flex items-center justify-center gap-1">
                         <span>⚡ SUBASTA DE TRABAJO ABIERTA</span>
                       </div>
 
+                      {Number(selectedTask.budget) > 0 && (
+                        <div className="inline-block bg-gray-950/90 border border-emerald-500/70 px-4 py-1.5 rounded-xl">
+                          <span className="text-[11px] text-gray-300 block">Pago Inmediato Ofrecido:</span>
+                          <span className="text-base font-mono font-black text-emerald-400">
+                            💰 ${Number(selectedTask.budget).toFixed(2)} {selectedTask.currency || 'USD'}
+                          </span>
+                        </div>
+                      )}
+
                       {currentUser.role === 'THIRD_PARTY' ? (
-                        <>
+                        <div className="space-y-3">
                           <p className="text-xs text-amber-200/90">
-                            Trabajo libre en bolsa pública. Como Contratista/Partner 3ero, el primero que haga clic se lo queda.
+                            Trabajo libre en bolsa pública. Puedes aceptarlo de inmediato por el monto publicado o enviar una contraoferta al Jefe.
                           </p>
                           <button
                             onClick={() => handleClaimAuctionTask(selectedTask.id)}
-                            className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-gray-950 font-black text-sm rounded-xl shadow-lg shadow-amber-500/30 transition-all flex items-center justify-center gap-2"
+                            className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-gray-950 font-black text-sm rounded-xl shadow-lg shadow-amber-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
                           >
-                            <span>✋ ¡RECLAMAR Y ASIGNARME ESTE TRABAJO!</span>
+                            <span>✋ ¡ACEPTAR OFERTA Y RECLAMAR AHORA! {Number(selectedTask.budget) > 0 ? `($${Number(selectedTask.budget).toFixed(2)})` : ''}</span>
                           </button>
-                        </>
+
+                          {/* Formulario de Contraoferta para Contratistas */}
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              const bidVal = e.target.counterBidAmount.value;
+                              const bidNote = e.target.counterBidNote.value;
+                              handleSubmitCounterBid(selectedTask.id, bidVal, bidNote);
+                              e.target.reset();
+                            }}
+                            className="bg-gray-950/85 border border-amber-700/60 p-3 rounded-xl text-left space-y-2"
+                          >
+                            <p className="text-[11px] font-bold text-amber-300">💬 ¿Deseas proponer otro presupuesto? Envía una Contraoferta:</p>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <div className="relative sm:w-36">
+                                <span className="absolute left-2.5 top-2 text-xs font-bold text-amber-400">$</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="1"
+                                  name="counterBidAmount"
+                                  required
+                                  placeholder="Tu monto"
+                                  className="w-full bg-gray-900 border border-gray-800 rounded-xl pl-6 pr-2 py-1.5 text-xs text-white font-mono focus:border-amber-500 focus:outline-none"
+                                />
+                              </div>
+                              <input
+                                type="text"
+                                name="counterBidNote"
+                                placeholder="Motivo / Incluye materiales (opcional)"
+                                className="flex-1 bg-gray-900 border border-gray-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:border-amber-500 focus:outline-none"
+                              />
+                              <button
+                                type="submit"
+                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shrink-0 cursor-pointer"
+                              >
+                                📩 Ofertar
+                              </button>
+                            </div>
+                          </form>
+                        </div>
                       ) : (
                         <>
                           <p className="text-xs text-amber-300/90">
@@ -3581,15 +3993,40 @@
                           </p>
                           <div className="p-2.5 bg-amber-950/60 border border-amber-700/50 rounded-xl text-[11px] text-amber-200 text-left space-y-1">
                             <p className="font-bold">💡 ¿Cómo probar la subasta?</p>
-                            <p className="text-gray-300">Cambia de rol en la barra superior a <strong>🔧 Roberto (Contratista 3ero)</strong> o <strong>🔧 Mario (Partner)</strong> para reclamar este trabajo.</p>
+                            <p className="text-gray-300">Cambia de rol en la barra superior a <strong>🔧 Roberto (Contratista 3ero)</strong> o <strong>🔧 Mario (Partner)</strong> para reclamar o enviar contraoferta.</p>
                           </div>
-                          <button
-                            onClick={() => handleClaimAuctionTask(selectedTask.id)}
-                            className="w-full py-2 bg-gray-950 border border-gray-800 text-gray-400 font-semibold text-xs rounded-xl hover:border-amber-600/50 transition-all flex items-center justify-center gap-1.5"
-                          >
-                            <span>🔒 Subasta Solo para 3eros (Intentar Reclamar)</span>
-                          </button>
                         </>
+                      )}
+
+                      {/* Lista de Contraofertas Recibidas */}
+                      {Array.isArray(selectedTask.bids) && selectedTask.bids.length > 0 && (
+                        <div className="bg-gray-950/90 border border-amber-700/60 rounded-xl p-3 text-left space-y-2">
+                          <p className="text-xs font-extrabold text-amber-300">
+                            📋 Contraofertas de Contratistas ({selectedTask.bids.length}):
+                          </p>
+                          <div className="space-y-1.5">
+                            {selectedTask.bids.map(b => (
+                              <div key={b.id} className="flex flex-wrap items-center justify-between gap-2 bg-gray-900 border border-gray-800 p-2 rounded-lg text-xs">
+                                <div>
+                                  <span className="font-bold text-white">🔧 {b.userName}</span>
+                                  <span className="ml-2 font-mono font-extrabold text-emerald-400">
+                                    ${Number(b.amount).toFixed(2)} {selectedTask.currency || 'USD'}
+                                  </span>
+                                  {b.note && <p className="text-[11px] text-gray-400 mt-0.5">“{b.note}”</p>}
+                                </div>
+                                {currentUser.role === 'BOSS' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAcceptCounterBid(selectedTask.id, b)}
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded-lg shadow cursor-pointer"
+                                  >
+                                    ✅ Aprobar y Asignar
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                   ) : (
@@ -4351,144 +4788,201 @@
             );
           })()}
 
-          {/* MODAL REGISTRO DE ACTIVIDADES COMPLETADAS */}
-          {isCompletedLogsModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/80 backdrop-blur-sm">
-              <div className="bg-gray-900 border border-gray-800 w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
-                <div className="bg-emerald-950 border-b border-emerald-800/60 p-4 flex justify-between items-center">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xl">📋</span>
-                    <div>
-                      <h3 className="font-bold text-white text-base">Registro & Bitácora de Actividades Completadas</h3>
-                      <p className="text-xs text-emerald-300/80">Historial completo de trabajos finalizados y ahorro de tiempo en agenda</p>
+          {/* MODAL REGISTRO DE ACTIVIDADES COMPLETADAS & CONTROL DE PAGOS */}
+          {isCompletedLogsModalOpen && (() => {
+            const totalPendingUSD = completedTasks
+              .filter(t => Number(t.budget) > 0 && t.paymentStatus !== 'PAID')
+              .reduce((acc, t) => acc + Number(t.budget || 0), 0);
+            const totalPaidUSD = completedTasks
+              .filter(t => Number(t.budget) > 0 && t.paymentStatus === 'PAID')
+              .reduce((acc, t) => acc + Number(t.budget || 0), 0);
+
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/80 backdrop-blur-sm">
+                <div className="bg-gray-900 border border-gray-800 w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+                  <div className="bg-emerald-950 border-b border-emerald-800/60 p-4 flex justify-between items-center">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xl">📋</span>
+                      <div>
+                        <h3 className="font-bold text-white text-base">Registro de Actividades Completadas & Control de Pagos</h3>
+                        <p className="text-xs text-emerald-300/80">Historial de trabajos finalizados, evidencias y estado de liquidación</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setIsCompletedLogsModalOpen(false)} className="text-gray-400 hover:text-white">✕</button>
+                  </div>
+
+                  {/* Resumen Financiero de Trabajos Completados */}
+                  <div className="bg-gray-950 border-b border-gray-800 px-4 py-2.5 grid grid-cols-3 gap-2 text-xs">
+                    <div className="bg-gray-900 border border-gray-800 rounded-xl p-2 text-center">
+                      <span className="text-[10px] text-gray-400 block">Trabajos Finalizados</span>
+                      <span className="font-extrabold text-white text-sm">{completedTasks.length}</span>
+                    </div>
+                    <div className="bg-amber-950/30 border border-amber-700/50 rounded-xl p-2 text-center">
+                      <span className="text-[10px] text-amber-300 block">⏳ Por Pagar (Pendiente)</span>
+                      <span className="font-mono font-black text-amber-400 text-sm">${totalPendingUSD.toFixed(2)}</span>
+                    </div>
+                    <div className="bg-emerald-950/30 border border-emerald-700/50 rounded-xl p-2 text-center">
+                      <span className="text-[10px] text-emerald-300 block">💵 Total Liquidado</span>
+                      <span className="font-mono font-black text-emerald-400 text-sm">${totalPaidUSD.toFixed(2)}</span>
                     </div>
                   </div>
-                  <button onClick={() => setIsCompletedLogsModalOpen(false)} className="text-gray-400 hover:text-white">✕</button>
-                </div>
 
-                <div className="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-950/50">
-                  {completedTasks.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500 text-xs">
-                      <span className="text-3xl block mb-2">📥</span>
-                      No hay actividades completadas registradas aún.
-                    </div>
-                  ) : (
-                    completedTasks.map(t => {
-                      const assignedUsers = getTaskAssignedUsers(t, users);
-                      const startTimeStr = new Date(t.startTime).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
-                      const endTimeStr = new Date(t.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-                      const origEndStr = t.originalEndTime ? new Date(t.originalEndTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : null;
+                  <div className="p-4 overflow-y-auto flex-1 space-y-3 bg-gray-950/50">
+                    {completedTasks.length === 0 ? (
+                      <div className="text-center py-12 text-gray-500 text-xs">
+                        <span className="text-3xl block mb-2">📥</span>
+                        No hay actividades completadas registradas aún.
+                      </div>
+                    ) : (
+                      completedTasks.map(t => {
+                        const assignedUsers = getTaskAssignedUsers(t, users);
+                        const startTimeStr = new Date(t.startTime).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+                        const endTimeStr = new Date(t.endTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                        const origEndStr = t.originalEndTime ? new Date(t.originalEndTime).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : null;
 
-                      return (
-                        <div key={t.id} className="bg-gray-900 border border-emerald-900/40 rounded-xl p-4 space-y-2.5 shadow-lg">
-                          <div className="flex flex-wrap justify-between items-start gap-2 border-b border-gray-800 pb-2">
-                            <div>
-                              <h4 className="font-extrabold text-white text-sm flex items-center gap-2">
-                                <span>{t.title}</span>
-                                {origEndStr && (
-                                  <span className="bg-emerald-950 text-emerald-300 border border-emerald-700/60 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                    ⚡ Finalizado Antes (Horario Liberado)
+                        return (
+                          <div key={t.id} className="bg-gray-900 border border-emerald-900/40 rounded-xl p-4 space-y-2.5 shadow-lg">
+                            <div className="flex flex-wrap justify-between items-start gap-2 border-b border-gray-800 pb-2">
+                              <div>
+                                <h4 className="font-extrabold text-white text-sm flex flex-wrap items-center gap-2">
+                                  <span>{t.title}</span>
+                                  {origEndStr && (
+                                    <span className="bg-emerald-950 text-emerald-300 border border-emerald-700/60 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                      ⚡ Finalizado Antes (Horario Liberado)
+                                    </span>
+                                  )}
+                                </h4>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  {t.description || 'Sin descripción adicional'}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                {Number(t.budget) > 0 && (
+                                  <span className={`px-2.5 py-1 rounded-full text-xs font-mono font-extrabold border ${
+                                    t.paymentStatus === 'PAID'
+                                      ? 'bg-emerald-950 text-emerald-300 border-emerald-500'
+                                      : 'bg-amber-950 text-amber-300 border-amber-500'
+                                  }`}>
+                                    {t.paymentStatus === 'PAID' ? '💵 PAGADO:' : '⏳ POR PAGAR:'} ${Number(t.budget).toFixed(2)} {t.currency || 'USD'}
                                   </span>
                                 )}
-                              </h4>
-                              <p className="text-xs text-gray-400 mt-0.5">
-                                {t.description || 'Sin descripción adicional'}
-                              </p>
-                            </div>
-                            <span className="bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-1 rounded-full text-xs font-bold font-mono">
-                              ✅ COMPLETADO
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                            <div className="bg-gray-950 p-2.5 rounded-lg border border-gray-800 space-y-1">
-                              <p className="font-semibold text-gray-300">👥 Participantes:</p>
-                              <p className="text-gray-400">
-                                {assignedUsers.map(u => `${u.name} (${u.role === 'BOSS' ? 'Jefe' : u.role === 'THIRD_PARTY' ? 'Contratista' : 'Empleado'})`).join(', ') || 'Sin asignar'}
-                              </p>
-                              {Array.isArray(t.subtasks) && t.subtasks.length > 0 && (
-                                <p className="text-[11px] text-indigo-300 pt-1 font-semibold">
-                                  ☑️ Checklist: {t.subtasks.filter(s => s.completed || s.done).length}/{t.subtasks.length} pasos completados
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="bg-gray-950 p-2.5 rounded-lg border border-gray-800 space-y-1 font-mono text-[11px]">
-                              <p className="text-gray-300">📅 Prog. Inicio: <span className="text-white">{startTimeStr}</span></p>
-                              {t.startedAt && (
-                                <p className="text-blue-300">▶️ Check-in Real: <span className="font-bold">{new Date(t.startedAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span> {t.startedBy ? `(${t.startedBy})` : ''}</p>
-                              )}
-                              <p className="text-gray-300">
-                                ✅ Check-out / Fin: <span className="text-emerald-400 font-bold">{endTimeStr}</span>
-                                {origEndStr && <span className="text-gray-500 line-through ml-1.5">(Prog. {origEndStr})</span>}
-                              </p>
-                              {t.completedBy && <p className="text-gray-400">👤 Registrado por: <span className="text-indigo-300">{t.completedBy}</span></p>}
-                            </div>
-                          </div>
-
-                          {t.completionNote && (
-                            <div className="bg-emerald-950/30 border border-emerald-800/50 rounded-xl p-3 text-xs space-y-1">
-                              <p className="font-bold text-emerald-300 flex items-center gap-1.5">
-                                <span>📝 Reporte / Nota de Cierre Técnico:</span>
-                              </p>
-                              <p className="text-gray-200 whitespace-pre-wrap leading-relaxed">{t.completionNote}</p>
-                            </div>
-                          )}
-
-                          {Array.isArray(t.evidencePhotos) && t.evidencePhotos.length > 0 && (
-                            <div className="space-y-1.5 pt-1">
-                              <p className="text-[11px] font-bold text-emerald-400">📸 Evidencia Fotográfica Adjunta ({t.evidencePhotos.length}):</p>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                {t.evidencePhotos.map((ph, pIdx) => {
-                                  const imgSrc = typeof ph === 'string' ? ph : ph.dataUrl;
-                                  return (
-                                    <div key={pIdx} className="bg-gray-950 border border-gray-800 rounded-lg overflow-hidden">
-                                      <img
-                                        src={imgSrc}
-                                        alt={`Evidencia ${pIdx + 1}`}
-                                        onClick={() => {
-                                          const w = window.open('');
-                                          if (w) {
-                                            w.document.write(`<body style="margin:0;background:#090d16;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="${imgSrc}" style="max-width:95vw;max-height:95vh;object-fit:contain;border-radius:12px;" /></body>`);
-                                          }
-                                        }}
-                                        className="w-full h-20 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                        title="Clic para ampliar foto"
-                                      />
-                                    </div>
-                                  );
-                                })}
+                                <span className="bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 px-2.5 py-1 rounded-full text-xs font-bold font-mono">
+                                  ✅ COMPLETADO
+                                </span>
                               </div>
                             </div>
-                          )}
 
-                          <div className="flex flex-wrap justify-between items-center pt-1 gap-2">
-                            {t.location ? (
-                              <p className="text-xs text-gray-400">📍 Ubicación: <span className="text-gray-200 font-semibold">{t.location}</span></p>
-                            ) : <span />}
-                            <button
-                              type="button"
-                              onClick={() => { setIsCompletedLogsModalOpen(false); setSelectedTask(t); }}
-                              className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-indigo-300 text-[11px] font-bold rounded-lg border border-gray-700 cursor-pointer"
-                            >
-                              🔍 Ver Ficha Completa
-                            </button>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                              <div className="bg-gray-950 p-2.5 rounded-lg border border-gray-800 space-y-1">
+                                <p className="font-semibold text-gray-300">👥 Participantes:</p>
+                                <p className="text-gray-400">
+                                  {assignedUsers.map(u => `${u.name} (${u.role === 'BOSS' ? 'Jefe' : u.role === 'THIRD_PARTY' ? 'Contratista' : 'Empleado'})`).join(', ') || 'Sin asignar'}
+                                </p>
+                                {Array.isArray(t.subtasks) && t.subtasks.length > 0 && (
+                                  <p className="text-[11px] text-indigo-300 pt-1 font-semibold">
+                                    ☑️ Checklist: {t.subtasks.filter(s => s.completed || s.done).length}/{t.subtasks.length} pasos completados
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="bg-gray-950 p-2.5 rounded-lg border border-gray-800 space-y-1 font-mono text-[11px]">
+                                <p className="text-gray-300">📅 Prog. Inicio: <span className="text-white">{startTimeStr}</span></p>
+                                {t.startedAt && (
+                                  <p className="text-blue-300">▶️ Check-in Real: <span className="font-bold">{new Date(t.startedAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span> {t.startedBy ? `(${t.startedBy})` : ''}</p>
+                                )}
+                                <p className="text-gray-300">
+                                  ✅ Check-out / Fin: <span className="text-emerald-400 font-bold">{endTimeStr}</span>
+                                  {origEndStr && <span className="text-gray-500 line-through ml-1.5">(Prog. {origEndStr})</span>}
+                                </p>
+                                {t.completedBy && <p className="text-gray-400">👤 Registrado por: <span className="text-indigo-300">{t.completedBy}</span></p>}
+                              </div>
+                            </div>
+
+                            {t.completionNote && (
+                              <div className="bg-emerald-950/30 border border-emerald-800/50 rounded-xl p-3 text-xs space-y-1">
+                                <p className="font-bold text-emerald-300 flex items-center gap-1.5">
+                                  <span>📝 Reporte / Nota de Cierre Técnico:</span>
+                                </p>
+                                <p className="text-gray-200 whitespace-pre-wrap leading-relaxed">{t.completionNote}</p>
+                              </div>
+                            )}
+
+                            {Array.isArray(t.evidencePhotos) && t.evidencePhotos.length > 0 && (
+                              <div className="space-y-1.5 pt-1">
+                                <p className="text-[11px] font-bold text-emerald-400">📸 Evidencia Fotográfica Adjunta ({t.evidencePhotos.length}):</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                  {t.evidencePhotos.map((ph, pIdx) => {
+                                    const imgSrc = typeof ph === 'string' ? ph : ph.dataUrl;
+                                    return (
+                                      <div key={pIdx} className="bg-gray-950 border border-gray-800 rounded-lg overflow-hidden">
+                                        <img
+                                          src={imgSrc}
+                                          alt={`Evidencia ${pIdx + 1}`}
+                                          onClick={() => {
+                                            const w = window.open('');
+                                            if (w) {
+                                              w.document.write(`<body style="margin:0;background:#090d16;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="${imgSrc}" style="max-width:95vw;max-height:95vh;object-fit:contain;border-radius:12px;" /></body>`);
+                                            }
+                                          }}
+                                          className="w-full h-20 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                          title="Clic para ampliar foto"
+                                        />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex flex-wrap justify-between items-center pt-1 gap-2">
+                              {t.location ? (
+                                <p className="text-xs text-gray-400">📍 Ubicación: <span className="text-gray-200 font-semibold">{t.location}</span></p>
+                              ) : <span />}
+                              <div className="flex items-center gap-2">
+                                {currentUser.role === 'BOSS' && Number(t.budget) > 0 && (
+                                  t.paymentStatus !== 'PAID' ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleTogglePaymentStatus(t.id, 'PAID')}
+                                      className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-lg shadow cursor-pointer"
+                                    >
+                                      💵 Marcar Pagado
+                                    </button>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleTogglePaymentStatus(t.id, 'PENDING_PAYMENT')}
+                                      className="px-2.5 py-1 bg-gray-800 hover:bg-gray-700 text-amber-300 text-[11px] font-semibold rounded-lg border border-gray-700 cursor-pointer"
+                                    >
+                                      ↩️ Pendiente
+                                    </button>
+                                  )
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => { setIsCompletedLogsModalOpen(false); setSelectedTask(t); }}
+                                  className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-indigo-300 text-[11px] font-bold rounded-lg border border-gray-700 cursor-pointer"
+                                >
+                                  🔍 Ver Ficha Completa
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
+                        );
+                      })
+                    )}
+                  </div>
 
-                <div className="p-3 bg-gray-900 border-t border-gray-800 flex justify-between items-center text-xs">
-                  <span className="text-gray-400">Total de Trabajos Completados: <strong>{completedTasks.length}</strong></span>
-                  <button onClick={() => setIsCompletedLogsModalOpen(false)} className="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold rounded-xl">
-                    Cerrar
-                  </button>
+                  <div className="p-3 bg-gray-900 border-t border-gray-800 flex justify-between items-center text-xs">
+                    <span className="text-gray-400">Total de Trabajos Completados: <strong>{completedTasks.length}</strong></span>
+                    <button onClick={() => setIsCompletedLogsModalOpen(false)} className="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 font-semibold rounded-xl">
+                      Cerrar
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* MODAL DE CARPETAS DE PROYECTOS & CONTROL DE TRABAJOS REALIZADOS */}
           {isProjectsModalOpen && (
