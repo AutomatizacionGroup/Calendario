@@ -2964,7 +2964,146 @@
         };
       };
 
+      // --- MÓDULO 4 & 5: DASHBOARD DE MÉTRICAS, EXPORTACIÓN (.CSV / .ICS), VENCIDAS & COMENTARIOS ---
+      const [isMetricsModalOpen, setIsMetricsModalOpen] = useState(false);
+
+      const isTaskOverdue = (task) => {
+        if (!task || task.status === 'COMPLETED' || task.status === 'CANCELLED') return false;
+        const end = new Date(task.endTime);
+        return end < now;
+      };
+
+      const handleAddTaskComment = (taskId, commentText) => {
+        if (!commentText || !commentText.trim()) return;
+        const newComment = {
+          id: 'cmt-' + Date.now() + Math.random().toString(36).slice(2, 6),
+          userId: currentUser.id,
+          userName: currentUser.name,
+          userRole: currentUser.role,
+          text: commentText.trim(),
+          createdAt: new Date().toISOString()
+        };
+
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId) {
+            const comments = Array.isArray(t.comments) ? [...t.comments, newComment] : [newComment];
+            return { ...t, comments };
+          }
+          return t;
+        }));
+
+        setSelectedTask(prev => {
+          if (prev && prev.id === taskId) {
+            const comments = Array.isArray(prev.comments) ? [...prev.comments, newComment] : [newComment];
+            return { ...prev, comments };
+          }
+          return prev;
+        });
+      };
+
+      const handleExportCSV = () => {
+        const headers = [
+          'ID',
+          'Titulo',
+          'Estado',
+          'Vencida',
+          'Proyecto',
+          'Responsables',
+          'Fecha Inicio',
+          'Fecha Fin',
+          'Check-In Real',
+          'Check-Out Real',
+          'Presupuesto',
+          'Moneda',
+          'Estado de Pago',
+          'Ubicacion',
+          'Nota de Cierre'
+        ];
+
+        const escapeCsv = (val) => {
+          if (val === null || val === undefined) return '""';
+          const str = String(val).replace(/"/g, '""');
+          return `"${str}"`;
+        };
+
+        const rows = tasks.map(t => {
+          const proj = projects.find(p => p.id === t.projectId)?.name || 'General';
+          const assigned = getTaskAssignedUsers(t, users).map(u => u.name).join(' | ') || 'Sin asignar (Subasta)';
+          const overdue = isTaskOverdue(t) ? 'SI (VENCIDA)' : 'NO';
+          return [
+            t.id,
+            t.title,
+            t.status,
+            overdue,
+            proj,
+            assigned,
+            t.startTime ? new Date(t.startTime).toLocaleString('es-ES') : '',
+            t.endTime ? new Date(t.endTime).toLocaleString('es-ES') : '',
+            t.startedAt ? new Date(t.startedAt).toLocaleString('es-ES') : '',
+            t.completedAt ? new Date(t.completedAt).toLocaleString('es-ES') : '',
+            Number(t.budget || 0).toFixed(2),
+            t.currency || 'USD',
+            t.paymentStatus === 'PAID' ? 'PAGADO' : (Number(t.budget) > 0 ? 'PENDIENTE' : 'N/A'),
+            t.location || '',
+            t.completionNote || ''
+          ].map(escapeCsv).join(',');
+        });
+
+        const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\r\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `reporte_calendario_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+
+      const handleExportICS = (task) => {
+        if (!task) return;
+        const formatIcsDate = (dateStr) => {
+          const d = new Date(dateStr);
+          const pad = (n) => String(n).padStart(2, '0');
+          return `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
+        };
+
+        const startUtc = formatIcsDate(task.startTime);
+        const endUtc = formatIcsDate(task.endTime);
+        const nowUtc = formatIcsDate(new Date().toISOString());
+        const assignedNames = getTaskAssignedUsers(task, users).map(u => u.name).join(', ') || 'Subasta Abierta';
+        const desc = `${task.description || 'Trabajo agendado'}\\nResponsables: ${assignedNames}${Number(task.budget) > 0 ? `\\nPresupuesto: $${Number(task.budget).toFixed(2)} ${task.currency || 'USD'}` : ''}`;
+
+        const icsLines = [
+          'BEGIN:VCALENDAR',
+          'VERSION:2.0',
+          'PRODID:-//Calendario Empresarial//ES',
+          'BEGIN:VEVENT',
+          `UID:${task.id}@calendario.empresarial`,
+          `DTSTAMP:${nowUtc}`,
+          `DTSTART:${startUtc}`,
+          `DTEND:${endUtc}`,
+          `SUMMARY:${task.title}`,
+          `DESCRIPTION:${desc}`,
+          `LOCATION:${task.location || ''}`,
+          'END:VEVENT',
+          'END:VCALENDAR'
+        ];
+
+        const blob = new Blob([icsLines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${task.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.ics`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+
       const completedTasks = tasks.filter(t => t.status === 'COMPLETED');
+      const overdueTasks = tasks.filter(t => isTaskOverdue(t));
       const pendingUsersCount = users.filter(u => u.status === 'PENDING_APPROVAL' || u.role === 'PENDING' || u.pendingRoleChange).length;
 
       if (!isLoggedIn) {
@@ -2983,6 +3122,13 @@
               </div>
 
               <div className="hidden sm:flex items-center space-x-2">
+                <button
+                  onClick={() => setIsMetricsModalOpen(true)}
+                  className="px-2.5 py-1.5 bg-gray-950 hover:bg-gray-900 border border-indigo-700/70 text-indigo-300 hover:text-white rounded-xl font-bold transition-all flex items-center space-x-1 cursor-pointer shadow-sm"
+                >
+                  <span>📊 Métricas & Reportes</span>
+                </button>
+
                 <button
                   onClick={() => setIsCompletedLogsModalOpen(true)}
                   className="px-2.5 py-1.5 bg-gray-950 hover:bg-gray-900 border border-gray-800 text-gray-300 hover:text-white rounded-xl font-semibold transition-all flex items-center space-x-1 cursor-pointer"
@@ -3198,6 +3344,39 @@
                 </div>
               );
             })()}
+
+            {/* BANNER DE ALERTA DE TAREAS VENCIDAS (MÓDULO 5) */}
+            {overdueTasks.length > 0 && (
+              <div className="mb-4 bg-gradient-to-r from-red-950 via-red-900/90 to-red-950 border border-red-500/80 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
+                <div className="flex items-center space-x-2.5 text-xs text-red-200">
+                  <span className="text-xl">⚠️</span>
+                  <div>
+                    <strong className="text-white text-sm">
+                      ¡Atención! Hay {overdueTasks.length} tarea(s) con horario vencido sin completar:
+                    </strong>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {overdueTasks.slice(0, 4).map(ot => (
+                        <button
+                          key={ot.id}
+                          type="button"
+                          onClick={() => setSelectedTask(ot)}
+                          className="px-2 py-0.5 bg-red-950 hover:bg-red-800 border border-red-500/70 rounded-lg text-[11px] font-bold text-red-200 cursor-pointer"
+                        >
+                          🚨 {ot.title}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTask(overdueTasks[0])}
+                  className="px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow shrink-0 cursor-pointer"
+                >
+                  Revisar Vencidas
+                </button>
+              </div>
+            )}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
               {/* LEFT SIDEBAR (COLLAPSIBLE) */}
               {isSidebarOpen && (
@@ -4167,16 +4346,31 @@
           {selectedTask && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/80 backdrop-blur-sm">
               <div className="bg-gray-900 border border-gray-800 w-full max-w-xl rounded-2xl shadow-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center border-b border-gray-800 pb-3">
+                <div className="flex justify-between items-center border-b border-gray-800 pb-3 gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-bold text-white text-base">{selectedTask.title}</h3>
+                    {isTaskOverdue(selectedTask) && (
+                      <span className="px-2 py-0.5 bg-red-950 border border-red-500 text-red-200 rounded-full text-[10px] font-extrabold animate-pulse">
+                        ⚠️ VENCIDA
+                      </span>
+                    )}
                     {selectedTask.recurrenceLabel && (
                       <span className="px-2 py-0.5 bg-indigo-950 border border-indigo-700 text-indigo-300 rounded-full text-[10px] font-bold">
                         🔄 Repetición {selectedTask.recurrenceLabel}
                       </span>
                     )}
                   </div>
-                  <button onClick={() => setSelectedTask(null)} className="text-gray-400 hover:text-white">✕</button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => handleExportICS(selectedTask)}
+                      className="px-2.5 py-1 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700 text-indigo-200 rounded-xl text-[11px] font-bold cursor-pointer flex items-center gap-1"
+                      title="Descargar archivo .ics para Google Calendar / Outlook / Apple Calendar"
+                    >
+                      <span>📅 Exportar (.ics)</span>
+                    </button>
+                    <button onClick={() => setSelectedTask(null)} className="text-gray-400 hover:text-white">✕</button>
+                  </div>
                 </div>
 
                 <div className="space-y-3 text-xs text-gray-300">
@@ -4921,6 +5115,62 @@
                     </div>
                   )}
 
+                  {/* 💬 COMENTARIOS INTERNOS / BITÁCORA DEL TRABAJO (MÓDULO 5) */}
+                  <div className="bg-gray-950 p-3.5 rounded-2xl border border-gray-800 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-indigo-300 flex items-center gap-1.5 text-xs">
+                        <span>💬 Comentarios y Novedades del Trabajo</span>
+                        <span className="bg-gray-900 border border-gray-700 text-gray-300 px-2 py-0.5 rounded-full text-[10px]">
+                          {Array.isArray(selectedTask.comments) ? selectedTask.comments.length : 0}
+                        </span>
+                      </span>
+                    </div>
+
+                    {(!Array.isArray(selectedTask.comments) || selectedTask.comments.length === 0) ? (
+                      <p className="text-[11px] text-gray-500 italic">No hay comentarios registrados aún. Escribe abajo para dejar una nota al equipo o al Jefe.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                        {selectedTask.comments.map(c => (
+                          <div key={c.id} className="bg-gray-900 border border-gray-800 rounded-xl p-2.5 text-xs space-y-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-bold text-white">
+                                {c.userRole === 'BOSS' ? '👑' : c.userRole === 'THIRD_PARTY' ? '🔧' : '👷'} {c.userName}
+                              </span>
+                              <span className="text-[10px] font-mono text-gray-400">
+                                {new Date(c.createdAt).toLocaleString('es-ES', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <p className="text-gray-200 whitespace-pre-wrap">{c.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const input = e.target.newCommentInput;
+                        if (input && input.value.trim()) {
+                          handleAddTaskComment(selectedTask.id, input.value);
+                          input.value = '';
+                        }
+                      }}
+                      className="flex gap-2 pt-1"
+                    >
+                      <input
+                        name="newCommentInput"
+                        placeholder="Escribe un comentario o actualización..."
+                        className="flex-1 bg-gray-900 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-white focus:border-indigo-500 focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all shrink-0 cursor-pointer"
+                      >
+                        Enviar 💬
+                      </button>
+                    </form>
+                  </div>
+
                   {selectedTask.assignedToId && (
                     <div className="pt-2 border-t border-gray-800 space-y-2">
                       <div className="flex items-center justify-between">
@@ -4984,6 +5234,126 @@
                     );
                   })()}
                   <button onClick={() => setSelectedTask(null)} className="px-4 py-1.5 bg-gray-800 text-gray-300 text-xs font-semibold rounded-xl">Cerrar</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 📊 MODAL DASHBOARD DE MÉTRICAS Y EXPORTACIÓN DE REPORTES (MÓDULO 4) */}
+          {isMetricsModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-950/85 backdrop-blur-md">
+              <div className="bg-gray-900 border border-gray-800 w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+                <div className="p-5 bg-gray-950 border-b border-gray-800 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="font-extrabold text-white text-base flex items-center gap-2">
+                      <span>📊 Dashboard de Métricas, Productividad & Finanzas</span>
+                    </h3>
+                    <p className="text-xs text-gray-400">Resumen ejecutivo en tiempo real y exportación a Excel / CSV</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleExportCSV}
+                      className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/30 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>📥 Descargar Excel / CSV</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsMetricsModalOpen(false)}
+                      className="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-300 flex items-center justify-center font-bold cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-5 overflow-y-auto space-y-5 flex-1 text-xs">
+                  {(() => {
+                    const total = tasks.length;
+                    const done = tasks.filter(t => t.status === 'COMPLETED').length;
+                    const inProg = tasks.filter(t => t.status === 'IN_PROGRESS').length;
+                    const auctions = tasks.filter(t => t.status === 'OPEN_AUCTION').length;
+                    const overdueCnt = overdueTasks.length;
+                    const completionRate = total > 0 ? Math.round((done / total) * 100) : 0;
+
+                    const totalBudgetUSD = tasks.reduce((acc, t) => acc + (Number(t.budget) || 0), 0);
+                    const totalPaidUSD = tasks.filter(t => t.paymentStatus === 'PAID').reduce((acc, t) => acc + (Number(t.budget) || 0), 0);
+                    const totalPendingUSD = totalBudgetUSD - totalPaidUSD;
+
+                    return (
+                      <>
+                        {/* KPIs Principales */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          <div className="bg-gray-950 border border-gray-800 p-3.5 rounded-2xl">
+                            <span className="text-gray-400 block">Total Trabajos</span>
+                            <span className="text-2xl font-black text-white">{total}</span>
+                            <span className="text-[11px] text-emerald-400 block mt-0.5">{completionRate}% tasa de cierre</span>
+                          </div>
+                          <div className="bg-emerald-950/40 border border-emerald-700/60 p-3.5 rounded-2xl">
+                            <span className="text-emerald-300 block">✅ Completados</span>
+                            <span className="text-2xl font-black text-emerald-400">{done}</span>
+                            <span className="text-[11px] text-gray-400 block mt-0.5">{inProg} en curso ahora</span>
+                          </div>
+                          <div className="bg-amber-950/40 border border-amber-700/60 p-3.5 rounded-2xl">
+                            <span className="text-amber-300 block">💰 Presupuesto Total</span>
+                            <span className="text-2xl font-mono font-black text-amber-400">${totalBudgetUSD.toFixed(0)}</span>
+                            <span className="text-[11px] text-emerald-400 block mt-0.5">Pagado: ${totalPaidUSD.toFixed(0)} | Pend.: ${totalPendingUSD.toFixed(0)}</span>
+                          </div>
+                          <div className="bg-red-950/40 border border-red-700/60 p-3.5 rounded-2xl">
+                            <span className="text-red-300 block">⚠️ Vencidas / Subastas</span>
+                            <span className="text-2xl font-black text-red-400">{overdueCnt}</span>
+                            <span className="text-[11px] text-amber-300 block mt-0.5">{auctions} subasta(s) libre(s)</span>
+                          </div>
+                        </div>
+
+                        {/* Rendimiento por Usuario / Contratista */}
+                        <div className="bg-gray-950 border border-gray-800 rounded-2xl p-4 space-y-3">
+                          <h4 className="font-extrabold text-white text-sm">👷 Rendimiento por Miembro / Contratista</h4>
+                          <div className="space-y-2.5">
+                            {users.map(u => {
+                              const userTasks = tasks.filter(t => getTaskAssignedIds(t).includes(u.id));
+                              const userDone = userTasks.filter(t => t.status === 'COMPLETED').length;
+                              const userPct = userTasks.length > 0 ? Math.round((userDone / userTasks.length) * 100) : 0;
+                              const userBudget = userTasks.reduce((acc, t) => acc + (Number(t.budget) || 0), 0);
+
+                              return (
+                                <div key={u.id} className="bg-gray-900 border border-gray-800 p-3 rounded-xl space-y-1.5">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span className="font-bold text-white">
+                                      {u.role === 'BOSS' ? '👑' : u.role === 'THIRD_PARTY' ? '🔧' : '👷'} {u.name}
+                                    </span>
+                                    <div className="flex items-center gap-3 font-mono text-xs">
+                                      <span className="text-emerald-400 font-bold">{userDone}/{userTasks.length} completadas ({userPct}%)</span>
+                                      {userBudget > 0 && (
+                                        <span className="text-amber-300 font-bold">💰 ${userBudget.toFixed(2)}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="w-full h-2 bg-gray-950 rounded-full overflow-hidden border border-gray-800">
+                                    <div
+                                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-400"
+                                      style={{ width: `${userPct}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                <div className="p-4 bg-gray-950 border-t border-gray-800 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsMetricsModalOpen(false)}
+                    className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold text-xs rounded-xl cursor-pointer"
+                  >
+                    Cerrar Dashboard
+                  </button>
                 </div>
               </div>
             </div>
