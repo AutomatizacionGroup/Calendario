@@ -97,9 +97,9 @@
           createdById: 'usr-1',
           projectId: 'prj-2',
           subtasks: [
-            { id: 'st-1', text: 'Verificar estado de baterías de UPS', done: true },
-            { id: 'st-2', text: 'Limpieza de filtros y ventiladores de rack', done: false },
-            { id: 'st-3', text: 'Comprobar respaldos automáticos en la nube', done: false }
+            { id: 'st-1', text: 'Verificar estado de baterías de UPS', completed: true },
+            { id: 'st-2', text: 'Limpieza de filtros y ventiladores de rack', completed: false },
+            { id: 'st-3', text: 'Comprobar respaldos automáticos en la nube', completed: false }
           ]
         },
         {
@@ -116,8 +116,8 @@
           createdById: 'usr-1',
           projectId: 'prj-3',
           subtasks: [
-            { id: 'st-4', text: 'Revisión de presión de gas refrigerante', done: false },
-            { id: 'st-5', text: 'Limpieza de bandeja de drenaje y serpentín', done: false }
+            { id: 'st-4', text: 'Revisión de presión de gas refrigerante', completed: false },
+            { id: 'st-5', text: 'Limpieza de bandeja de drenaje y serpentín', completed: false }
           ]
         },
         {
@@ -136,9 +136,9 @@
           createdById: 'usr-1',
           projectId: 'prj-4',
           subtasks: [
-            { id: 'st-6', text: 'Tendido de tubería EMT y canaletas', done: true },
-            { id: 'st-7', text: 'Ponchado de 24 jacks RJ45 Cat6a en patch panel', done: true },
-            { id: 'st-8', text: 'Certificación con escáner Fluke y etiquetado', done: false }
+            { id: 'st-6', text: 'Tendido de tubería EMT y canaletas', completed: true },
+            { id: 'st-7', text: 'Ponchado de 24 jacks RJ45 Cat6a en patch panel', completed: true },
+            { id: 'st-8', text: 'Certificación con escáner Fluke y etiquetado', completed: false }
           ]
         },
         {
@@ -3733,40 +3733,76 @@
 
                       {/* Subida de Fotos de Evidencia (Comprimidas automáticamente en Base64) */}
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
                           <label className="text-[11px] font-semibold text-gray-300">
                             🖼️ Fotos de Evidencia (Antes / Después):
                           </label>
-                          <label className="px-3 py-1 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700 text-indigo-200 rounded-xl text-[11px] font-bold cursor-pointer transition-all flex items-center gap-1">
-                            <span>📷 Adjuntar Foto</span>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files && e.target.files[0];
-                                if (!file) return;
-                                const reader = new FileReader();
-                                reader.onload = (ev) => {
-                                  const img = new Image();
-                                  img.onload = () => {
-                                    const canvas = document.createElement('canvas');
-                                    const MAX_W = 600;
-                                    const scale = img.width > MAX_W ? MAX_W / img.width : 1;
-                                    canvas.width = img.width * scale;
-                                    canvas.height = img.height * scale;
-                                    const ctx = canvas.getContext('2d');
-                                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
-                                    handleSaveTaskEvidence(selectedTask.id, undefined, compressedDataUrl);
+                          <div className="flex items-center gap-1.5">
+                            {/* Botón directo para abrir la Cámara Trasera en Teléfonos */}
+                            <label className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 border border-emerald-500 text-white rounded-xl text-[11px] font-bold cursor-pointer transition-all flex items-center gap-1 shadow-md shadow-emerald-900/40">
+                              <span>📸 Tomar Foto (Cámara)</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files && e.target.files[0];
+                                  if (!file) return;
+                                  const reader = new FileReader();
+                                  reader.onload = (ev) => {
+                                    const img = new Image();
+                                    img.onload = () => {
+                                      const canvas = document.createElement('canvas');
+                                      const MAX_W = 600;
+                                      const scale = img.width > MAX_W ? MAX_W / img.width : 1;
+                                      canvas.width = img.width * scale;
+                                      canvas.height = img.height * scale;
+                                      const ctx = canvas.getContext('2d');
+                                      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+                                      handleSaveTaskEvidence(selectedTask.id, undefined, compressedDataUrl);
+                                    };
+                                    img.src = ev.target.result;
                                   };
-                                  img.src = ev.target.result;
-                                };
-                                reader.readAsDataURL(file);
-                                e.target.value = '';
-                              }}
-                            />
-                          </label>
+                                  reader.readAsDataURL(file);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+
+                            {/* Botón para adjuntar desde Galería / Archivos */}
+                            <label className="px-2.5 py-1.5 bg-indigo-950 hover:bg-indigo-900 border border-indigo-700 text-indigo-200 rounded-xl text-[11px] font-bold cursor-pointer transition-all flex items-center gap-1">
+                              <span>🖼️ Galería</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files && e.target.files[0];
+                                  if (!file) return;
+                                  const reader = new FileReader();
+                                  reader.onload = (ev) => {
+                                    const img = new Image();
+                                    img.onload = () => {
+                                      const canvas = document.createElement('canvas');
+                                      const MAX_W = 600;
+                                      const scale = img.width > MAX_W ? MAX_W / img.width : 1;
+                                      canvas.width = img.width * scale;
+                                      canvas.height = img.height * scale;
+                                      const ctx = canvas.getContext('2d');
+                                      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+                                      handleSaveTaskEvidence(selectedTask.id, undefined, compressedDataUrl);
+                                    };
+                                    img.src = ev.target.result;
+                                  };
+                                  reader.readAsDataURL(file);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+                          </div>
                         </div>
 
                         {Array.isArray(selectedTask.evidencePhotos) && selectedTask.evidencePhotos.length > 0 ? (
@@ -4227,7 +4263,7 @@
                               </p>
                               {Array.isArray(t.subtasks) && t.subtasks.length > 0 && (
                                 <p className="text-[11px] text-indigo-300 pt-1 font-semibold">
-                                  ☑️ Checklist: {t.subtasks.filter(s => s.done).length}/{t.subtasks.length} pasos completados
+                                  ☑️ Checklist: {t.subtasks.filter(s => s.completed || s.done).length}/{t.subtasks.length} pasos completados
                                 </p>
                               )}
                             </div>
@@ -4258,22 +4294,25 @@
                             <div className="space-y-1.5 pt-1">
                               <p className="text-[11px] font-bold text-emerald-400">📸 Evidencia Fotográfica Adjunta ({t.evidencePhotos.length}):</p>
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                {t.evidencePhotos.map(ph => (
-                                  <div key={ph.id} className="bg-gray-950 border border-gray-800 rounded-lg overflow-hidden">
-                                    <img
-                                      src={ph.dataUrl}
-                                      alt={ph.name}
-                                      onClick={() => {
-                                        const w = window.open('');
-                                        if (w) {
-                                          w.document.write(`<body style="margin:0;background:#090d16;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="${ph.dataUrl}" style="max-width:95vw;max-height:95vh;object-fit:contain;border-radius:12px;" /></body>`);
-                                        }
-                                      }}
-                                      className="w-full h-20 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                      title="Clic para ampliar foto"
-                                    />
-                                  </div>
-                                ))}
+                                {t.evidencePhotos.map((ph, pIdx) => {
+                                  const imgSrc = typeof ph === 'string' ? ph : ph.dataUrl;
+                                  return (
+                                    <div key={pIdx} className="bg-gray-950 border border-gray-800 rounded-lg overflow-hidden">
+                                      <img
+                                        src={imgSrc}
+                                        alt={`Evidencia ${pIdx + 1}`}
+                                        onClick={() => {
+                                          const w = window.open('');
+                                          if (w) {
+                                            w.document.write(`<body style="margin:0;background:#090d16;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="${imgSrc}" style="max-width:95vw;max-height:95vh;object-fit:contain;border-radius:12px;" /></body>`);
+                                          }
+                                        }}
+                                        className="w-full h-20 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                        title="Clic para ampliar foto"
+                                      />
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
