@@ -3614,10 +3614,10 @@
                         <span className="absolute left-3 top-2 text-xs font-bold text-amber-400">$</span>
                         <input
                           type="number"
-                          step="0.01"
+                          step="10"
                           min="0"
                           name="budget"
-                          placeholder="0.00 (Ej. 150.00)"
+                          placeholder="0 (Ej. 150)"
                           className="w-full bg-gray-950 border border-gray-800 rounded-xl pl-7 pr-3 py-1.5 text-xs text-white font-mono focus:border-amber-500 focus:outline-none"
                         />
                       </div>
@@ -3854,7 +3854,7 @@
                               <input
                                 key={'bgt-' + selectedTask.id + (selectedTask.budget || 0)}
                                 type="number"
-                                step="0.01"
+                                step="10"
                                 min="0"
                                 name="editBudgetInput"
                                 defaultValue={selectedTask.budget || ''}
@@ -3963,8 +3963,8 @@
                                 <span className="absolute left-2.5 top-2 text-xs font-bold text-amber-400">$</span>
                                 <input
                                   type="number"
-                                  step="0.01"
-                                  min="1"
+                                  step="10"
+                                  min="0"
                                   name="counterBidAmount"
                                   required
                                   placeholder="Tu monto"
