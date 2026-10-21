@@ -3506,13 +3506,13 @@
                     </select>
                   </div>
 
-                  {/* ASIGNACIÓN & SELECCIÓN DE PARTICIPANTES (PESTAÑA DESPLEGABLE SUAVE) */}
+                  {/* ASIGNACIÓN, SUBASTA & PRESUPUESTO UNIFICADOS */}
                   <div>
-                    <label className="block text-xs font-semibold text-gray-300 mb-1.5">Asignación & Participantes del Trabajo</label>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1.5">Asignación, Subasta & Presupuesto del Trabajo</label>
 
-                    {currentUser.role === 'BOSS' && (
-                      <div id="auction-option-wrapper" className="mb-2 p-2.5 bg-amber-950/40 border border-amber-600/40 rounded-xl">
-                        <label className="flex items-center space-x-2 text-xs font-semibold text-amber-300 cursor-pointer">
+                    <div id="auction-option-wrapper" className="mb-2.5 p-3 bg-amber-950/30 border border-amber-600/50 rounded-xl space-y-2.5">
+                      {currentUser.role === 'BOSS' && (
+                        <label className="flex items-center space-x-2 text-xs font-bold text-amber-300 cursor-pointer pb-2 border-b border-amber-800/40">
                           <input
                             type="checkbox"
                             name="isAuctionOption"
@@ -3529,8 +3529,39 @@
                           />
                           <span>⚡ Publicar como SUBASTA ABIERTA para Contratistas (Sin Asignar)</span>
                         </label>
+                      )}
+
+                      <div id="budget-option-wrapper" className="space-y-1.5">
+                        <label className="block text-xs font-bold text-amber-300">
+                          💰 Presupuesto / Pago Ofrecido por el Trabajo (Opcional)
+                        </label>
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <span className="absolute left-3 top-2 text-xs font-bold text-amber-400">$</span>
+                            <input
+                              type="number"
+                              step="10"
+                              min="0"
+                              name="budget"
+                              placeholder="0 (Ej. 150)"
+                              className="w-full bg-gray-950 border border-gray-800 rounded-xl pl-7 pr-3 py-1.5 text-xs text-white font-mono focus:border-amber-500 focus:outline-none"
+                            />
+                          </div>
+                          <select
+                            name="currency"
+                            defaultValue="USD"
+                            className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-amber-300 font-bold focus:outline-none cursor-pointer"
+                          >
+                            <option value="USD">USD ($)</option>
+                            <option value="VES">Bs. (VES)</option>
+                            <option value="EUR">EUR (€)</option>
+                          </select>
+                        </div>
+                        <p className="text-[10px] text-amber-200/70">
+                          Si es una Subasta, los contratistas verán este pago ofrecido o podrán enviar una contraoferta.
+                        </p>
                       </div>
-                    )}
+                    </div>
 
                     <div id="participants-details-wrapper" className="space-y-1.5">
                       <button
@@ -3602,38 +3633,6 @@
                       <label className="block text-xs font-semibold text-gray-300 mb-1">Hora Fin</label>
                       <CustomTimePicker name="endTimeStr" defaultValue={newTaskDefaults.endTimeStr || '11:00'} align="right" required />
                     </div>
-                  </div>
-
-                  {/* 💰 PRESUPUESTO / MONTO OFRECIDO */}
-                  <div id="budget-option-wrapper" className="bg-amber-950/20 border border-amber-700/40 p-3 rounded-xl space-y-1.5">
-                    <label className="block text-xs font-bold text-amber-300">
-                      💰 Presupuesto / Pago Ofrecido por el Trabajo (Opcional)
-                    </label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <span className="absolute left-3 top-2 text-xs font-bold text-amber-400">$</span>
-                        <input
-                          type="number"
-                          step="10"
-                          min="0"
-                          name="budget"
-                          placeholder="0 (Ej. 150)"
-                          className="w-full bg-gray-950 border border-gray-800 rounded-xl pl-7 pr-3 py-1.5 text-xs text-white font-mono focus:border-amber-500 focus:outline-none"
-                        />
-                      </div>
-                      <select
-                        name="currency"
-                        defaultValue="USD"
-                        className="bg-gray-950 border border-gray-800 rounded-xl px-3 py-1.5 text-xs text-amber-300 font-bold focus:outline-none cursor-pointer"
-                      >
-                        <option value="USD">USD ($)</option>
-                        <option value="VES">Bs. (VES)</option>
-                        <option value="EUR">EUR (€)</option>
-                      </select>
-                    </div>
-                    <p className="text-[10px] text-gray-400">
-                      Si es una Subasta, los contratistas verán este pago ofrecido o podrán enviar una contraoferta.
-                    </p>
                   </div>
 
                   <div className="space-y-2 bg-gray-950 p-3 rounded-xl border border-gray-800">
